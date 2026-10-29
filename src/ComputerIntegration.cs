@@ -19,16 +19,7 @@ namespace Maquim.OfficeInstaller
 {
     internal static class Release
     {
-        public const string Version = "1.1.1";
-        public static string EmbeddedIngestToken {
-            get {
-                using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Maquim.IngestToken"))
-                {
-                    if (stream == null) return "";
-                    using (var reader = new StreamReader(stream, Encoding.UTF8)) return reader.ReadToEnd();
-                }
-            }
-        }
+        public const string Version = "1.1.2";
     }
 
     internal sealed class TechnicianInput
@@ -244,7 +235,6 @@ namespace Maquim.OfficeInstaller
         {
             string value = Environment.GetEnvironmentVariable("INSTALLATIONS_INGEST_TOKEN");
             if (!String.IsNullOrWhiteSpace(value) && value.Trim() != LoadToken()) SaveToken(value);
-            else if (String.IsNullOrWhiteSpace(value) && String.IsNullOrWhiteSpace(LoadToken()) && !String.IsNullOrWhiteSpace(Release.EmbeddedIngestToken)) SaveToken(Release.EmbeddedIngestToken);
         }
         public void Note(string message)
         {

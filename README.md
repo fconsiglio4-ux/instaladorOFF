@@ -1,98 +1,69 @@
-# Instalador Office — Maquim 1.1.1
+# Instalador Office — Maquim 1.1.2
 
-Instalador Windows com interface para instalar **O365ProPlusRetail** a partir
-de IMG/ISO local ou pasta extraída. A imagem permanece ao lado do EXE e não
-é incluída no repositório nem no artefato de compilação.
+Instala O365ProPlusRetail a partir de IMG/ISO ao lado do executável ou pasta
+extraída, preservando o fluxo de instalação e a ativação opcional existentes.
+Integra os resultados confirmados a **Instalações → Computadores** do Roteiro.
 
-A versão 1.1.1 integra **Instalações → Computadores**, com serial e patrimônio
-obrigatórios, confirmação, coleta do Office efetivo e fila persistente.
-Leia [a documentação da integração](docs-INTEGRACAO.md) para configurar o token,
-consultar os testes e executar o piloto com dados reais.
+A versão 1.1.2 recebe as credenciais **durante a execução**. O token é configurado
+em **Configurar integração** e salvo com DPAPI para a conta Windows atual. Ao
+criar a conta local Maquim, a senha é solicitada em uma janela com confirmação.
+Token e senha não são incorporados ao EXE nem exigidos pelo build.
 
 ## Baixar e usar
 
-Em **Actions → Compilar instalador Windows**, abra uma execução concluída
-e baixe o artefato **Maquim-Office-Setup**. Extraia o ZIP, coloque sua imagem
-na mesma pasta e execute `Maquim-Office-Setup.exe` como administrador.
-Uma única imagem nessa pasta é selecionada automaticamente. Escolha a
-arquitetura e o idioma disponíveis na mídia; padrão: 64 bits, português Brasil.
+Em Actions → Compilar instalador Windows, abra a última execução bem-sucedida
+e baixe o artefato Maquim-Office-Setup. Extraia o ZIP e mantenha a imagem local
+junto de `Maquim-Office-Setup.exe`.
 
-A mídia precisa conter `Office/Data/v64.cab` (ou `v32.cab`) e uma pasta de
-versão com os fluxos neutro e de idioma correspondentes. Uma mídia incompleta
-é rejeitada antes de iniciar a instalação. Como a imagem ainda não foi
-fornecida para inspeção, sua compatibilidade deve ser confirmada num piloto.
+1. Abra o EXE com privilégios de administrador.
+2. Em Configurar integração, informe o mesmo token de ingestão do Roteiro.
+3. Preencha serial e patrimônio reais; avance e confira os valores.
+4. Clique em Instalar Office. Se Maquim não existir, informe e confirme a senha.
+5. Aguarde a instalação, a confirmação dos dados reais e o envio ou enfileiramento.
 
-## Fluxo
+Uma conta Maquim existente tem sua senha preservada e sua associação ao grupo
+Administradores verificada. A senha digitada não é guardada pelo instalador,
+passada em linha de comando ou enviada ao Roteiro.
 
-1. Valida privilégios, aplicativos abertos e arquitetura de Office existente.
-2. Valida a assinatura Microsoft do ODT incorporado ao EXE.
-3. Monta a imagem como ISO somente leitura ou usa a pasta selecionada.
-4. Identifica a versão local e gera XML para `O365ProPlusRetail` com origem
-   local, versão explícita e `AllowCdnFallback=False`.
-5. Executa ODT e verifica código de saída, produto e arquitetura no registro.
-6. Se marcado, baixa a revisão fixa do Ohook, verifica SHA-256 e executa a
-   opção não interativa. Registra separadamente o resultado informado pelo script.
-7. Desmonta somente imagens montadas por esta execução, inclusive após erros.
+Uma única imagem na pasta é selecionada automaticamente. Escolha idioma e
+arquitetura disponíveis na mídia (padrão 64 bits / pt-br). A mídia deve conter
+Office/Data, catálogo e arquivos de versão completos. Não é enviada à internet.
 
-O processo não remove Office anterior, não força fechamento de aplicativos
-e não reinicia o Windows. Saída 3010 adia a ativação até reinicialização.
-Arquiteturas conflitantes e outras incompatibilidades precisam de resolução
-manual. Não altera políticas permanentes de execução do PowerShell.
+## Fila e segurança
 
-## Ativação selecionável
+O serial e patrimônio são obrigatórios e preservam zeros/letras. O resultado
+usa o nome real do computador, Windows e Office efetivamente detectados. Falha
+na confirmação impede registrar uma conclusão presumida.
 
-A interface identifica **Ohook 3.12**, conforme o fluxo solicitado. Esse método
-altera componentes de licenciamento do Office; o sucesso informado pelo script
-não equivale a uma verificação de licença Microsoft. Para ativação oficial por
-conta licenciada, desmarque essa opção e entre na conta no aplicativo Office.
+A fila persistente fica em `%LOCALAPPDATA%\Maquim\ComputerInstallations`, separada
+das impressoras. Reenvia ao abrir, no login e a cada 15 minutos sob a mesma conta
+com sessão ativa. Preserva UUID/data/conteúdo e só remove com confirmação válida
+de HTTP 200/201, `ok:true` e UUID correspondente. 401 pausa até corrigir o token;
+400/413/415/422 bloqueiam o registro para revisão; falhas temporárias mantêm a fila.
 
-Não é usado `irm | iex` nem a versão mutável do servidor. Fonte externa fixada:
+POST em HTTPS com TLS 1.2, certificado normal, timeout de 30 segundos e sem
+redirecionamentos. Credenciais não aparecem nos logs nem no JSON de instalação.
 
-- Repositório: https://github.com/massgravel/Microsoft-Activation-Scripts
-- Revisão: `6401d2f36975dc07bcb6d22ea823a8498a75ec01`
-- Arquivo: `MAS/Separate-Files-Version/Activators/Ohook_Activation_AIO.cmd`
-- SHA-256: `9c77ecce70a4c7161589dbbe20d9282a0b5071dba6260abb59ca35a765f475ef`
+## Compilar e testar
 
-O script externo é baixado em tempo de execução, não redistribuído neste
-repositório. Sua licença e código estão no projeto de origem. O instalador
-não adiciona exclusões de antivírus. Erros de download, integridade ou resultado
-interrompem essa etapa e preservam o Office já instalado.
-
-## Compilar
-
-O token é incorporado como recurso binário na compilação. Cadastre uma vez
-os segredos `INSTALLATIONS_INGEST_TOKEN` e `MAQUIM_LOCAL_ADMIN_PASSWORD` em **Settings → Secrets and variables
-→ Actions**. Ele deve ter o mesmo valor configurado no Roteiro Maquim.
-O token não é publicado no fonte. Sem esse segredo, o workflow executa os
-testes simulados e não publica um executável incompleto.
-
-
-No Windows 10/11 com .NET Framework 4.8 e Windows PowerShell 5.1:
+Windows 10/11 com .NET Framework 4.8 e Windows PowerShell 5.1:
 
 ```powershell
 ./tests/Test-Media.ps1
-./scripts/Build.ps1 -TestOnly
-# Para gerar o EXE final, configure INSTALLATIONS_INGEST_TOKEN no ambiente do build.
 ./scripts/Build.ps1
 ```
 
-`Build.ps1` baixa o Office Deployment Tool oficial **16.0.20430.20146**,
-valida assinatura Microsoft do pacote e do `setup.exe`, e incorpora este
-último e os scripts no executável. A internet é necessária na compilação.
-Saída: `dist/Maquim-Office-Setup.exe`, instruções e SHA-256. Não é necessário
-instalar .NET SDK nem bibliotecas externas. O EXE Maquim não é assinado.
+O build baixa o Office Deployment Tool oficial, verifica sua assinatura,
+compila instalador/agente e executa testes simulados da mesma interface e código.
+Não precisa de segredos GitHub nem credenciais no ambiente de build. Não cria
+contas reais nem registros em produção nos testes. Valida também que instalador
+e agente não contenham recursos de credenciais. Saída em `dist` com instruções
+e SHA-256. O executável Maquim não possui assinatura de código.
 
-## Validação e limites
+## Documentação
 
-CI Windows valida a sintaxe PowerShell, seleção da versão local, XML, produto,
-idioma, arquitetura, caminhos com espaços/`&` e rejeição de mídia incompleta.
-Depois compila C#. Não instala Office nem executa Ohook no runner.
-O teste real de montagem, instalação e ativação requer sua mídia e um
-computador piloto. A configuração local não desativa as atualizações futuras
-do Office; elas podem usar internet após a instalação.
+- [Integração, contrato, fila e piloto real](docs-INTEGRACAO.md)
+- [Criação da conta local e senha durante a execução](docs-CONTA-MAQUIM.md)
 
-Referência de configuração Microsoft:
-https://learn.microsoft.com/pt-br/microsoft-365-apps/deploy/office-deployment-tool-configuration-options
-
-A versão 1.1.1 prepara também a conta local Maquim como administradora.
-Veja [comportamento da conta e configuração de build](docs-CONTA-MAQUIM.md).
+O piloto real deve confirmar montagem da imagem, instalação, login da conta e
+exibição dos dados no Roteiro. O runner não instala Office nem cria a conta local.

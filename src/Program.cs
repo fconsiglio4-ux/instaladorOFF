@@ -109,7 +109,7 @@ namespace Maquim.OfficeInstaller
             if (!File.Exists(media.Text) && !Directory.Exists(media.Text)) throw new InvalidOperationException("Selecione a mídia do Office.");
             if (!accept.Checked) throw new InvalidOperationException("É necessário aceitar os termos de licença para instalar.");
             serial.Text = values.SerialNumber; asset.Text = values.AssetTag;
-            confirmation.Text = "Confira os dados antes de instalar:\n\nNúmero de série do computador: " + values.SerialNumber + "\nNúmero de patrimônio: " + values.AssetTag + "\n\nComputador: " + Environment.MachineName + "\nMídia: " + media.Text + "\nOffice: O365ProPlusRetail / " + architecture.SelectedItem + " / " + language.SelectedItem + "\nAtivação após instalar: " + (activate.Checked ? "selecionada" : "não selecionada") + "\n\nConta local: criar Maquim como administradora (conta existente mantém a senha).\nUse Voltar para corrigir os dados. A edição e a versão efetivas serão coletadas após a instalação.";
+            confirmation.Text = "Confira os dados antes de instalar:\n\nNúmero de série do computador: " + values.SerialNumber + "\nNúmero de patrimônio: " + values.AssetTag + "\n\nComputador: " + Environment.MachineName + "\nMídia: " + media.Text + "\nOffice: O365ProPlusRetail / " + architecture.SelectedItem + " / " + language.SelectedItem + "\nAtivação após instalar: " + (activate.Checked ? "selecionada" : "não selecionada") + "\n\nConta local: criar Maquim como administradora; a senha será solicitada nesta execução (conta existente mantém a senha).\nUse Voltar para corrigir os dados. A edição e a versão efetivas serão coletadas após a instalação.";
             fields.Visible = false; confirmation.Visible = true; confirmation.BringToFront();
             Confirming = true; back.Visible = true; install.Text = "Instalar Office";
         }
@@ -142,7 +142,7 @@ namespace Maquim.OfficeInstaller
                 queue = new ComputerQueue();
                 await Task.Run(() => { queue.ImportEnvironmentToken(); SyncAgent.Register(queue); queue.Retry(); });
                 setupProblem = null;
-                Append("Token de comunicação incorporado; configuração automática disponível. Reenvio: a cada 15 minutos e no login, sob " + WindowsIdentity.GetCurrent().Name + ".");
+                Append("Configure o token em Configurar integração. Ele será protegido pelo Windows. Reenvio: a cada 15 minutos e no login, sob " + WindowsIdentity.GetCurrent().Name + ".");
             } catch { setupProblem = "Não foi possível preparar o reenvio. Use Configurar integração antes de instalar."; Append(setupProblem); }
             finally { integrationBusy = false; install.Enabled = true; integration.Enabled = true; RefreshStatus(); }
         }
@@ -151,7 +151,7 @@ namespace Maquim.OfficeInstaller
             if (running || integrationBusy) return;
             using (var dialog = new Form { Text = "Integração com Roteiro Maquim", StartPosition = FormStartPosition.CenterParent, Size = new Size(690, 310), FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false })
             {
-                var label = new Label { Left = 18, Top = 15, Width = 640, Height = 70, Text = "O token padrão já está incorporado ao executável. Este campo permite substituí-lo.\nSerá protegido para a conta Windows atual. Deixe vazio para manter o token salvo.\nDestino: Instalações → Computadores." };
+                var label = new Label { Left = 18, Top = 15, Width = 640, Height = 70, Text = "Informe o INSTALLATIONS_INGEST_TOKEN do Roteiro Maquim.\nSerá protegido para a conta Windows atual. Deixe vazio para manter o token salvo.\nDestino: Instalações → Computadores." };
                 var token = new TextBox { Left = 18, Top = 90, Width = 640, UseSystemPasswordChar = true, MaxLength = 4096 };
                 var save = new Button { Left = 430, Top = 200, Width = 230, Text = "Salvar e tentar enviar", DialogResult = DialogResult.OK };
                 var retryBlocked = new CheckBox { Left = 18, Top = 130, Width = 630, Height = 50, Text = "Reavaliar registros bloqueados por formato/tamanho (após corrigir a causa)." };
@@ -176,8 +176,15 @@ namespace Maquim.OfficeInstaller
             running = true; options.Enabled = false; install.Enabled = false; back.Enabled = false; integration.Enabled = false; progress.Style = ProgressBarStyle.Marquee;
             Guid installationId = Guid.NewGuid();
             bool officeConfirmed = false, queued = false;
+            string localPassword = null;
             try
             {
+                if (await Task.Run(() => LocalAdminAccount.RequiresPassword())) {
+                    using (var dialog = new AccountPasswordDialog()) {
+                        if (dialog.ShowDialog(this) != DialogResult.OK) { Append("Criação da conta cancelada; instalação não iniciada."); return; }
+                        localPassword = dialog.TakePassword();
+                    }
+                }
                 work = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "MaquimOffice", "Runs", installationId.ToString("N"));
                 var security = new DirectorySecurity(); security.SetAccessRuleProtection(true, false);
                 foreach (var sid in new[] { new SecurityIdentifier(WellKnownSidType.BuiltinAdministratorsSid, null), new SecurityIdentifier(WellKnownSidType.LocalSystemSid, null), WindowsIdentity.GetCurrent().User })
@@ -185,7 +192,9 @@ namespace Maquim.OfficeInstaller
                 Directory.CreateDirectory(work, security);
                 logs.Enabled = true;
                 Append("Preparando conta local Maquim com permissões de administrador...");
-                string accountResult = await Task.Run(() => LocalAdminAccount.Ensure());
+                string accountResult;
+                try { accountResult = await Task.Run(() => LocalAdminAccount.Ensure(localPassword)); }
+                finally { localPassword = null; }
                 Append(accountResult);
                 File.WriteAllText(Path.Combine(work, "account.log"), DateTimeOffset.Now.ToString("o") + " " + accountResult);
                 foreach (var file in new[] { "Install-Office.ps1", "OfficeMedia.psm1", "setup.exe" })
@@ -224,7 +233,7 @@ namespace Maquim.OfficeInstaller
                 string message = queued ? "Instalação concluída; envio dos dados pendente. O registro está preservado na fila. " + ex.Message : officeConfirmed ? "Office instalado, mas não foi possível salvar os dados na fila. Preserve esta tela e os registros. " + ex.Message : "Não foi possível confirmar o resultado completo da instalação; nenhum registro concluído foi enviado. " + ex.Message;
                 Append("ERRO: " + message); MessageBox.Show(this, message, Text, MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
-            finally { running = false; options.Enabled = true; install.Enabled = true; back.Enabled = true; integration.Enabled = true; progress.Style = ProgressBarStyle.Blocks; }
+            finally { localPassword = null; running = false; options.Enabled = true; install.Enabled = true; back.Enabled = true; integration.Enabled = true; progress.Style = ProgressBarStyle.Blocks; }
         }
     }
 }

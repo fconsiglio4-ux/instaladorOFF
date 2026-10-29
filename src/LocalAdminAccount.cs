@@ -1,9 +1,6 @@
 using System;
 using System.DirectoryServices.AccountManagement;
-using System.IO;
-using System.Reflection;
 using System.Security.Principal;
-using System.Text;
 
 namespace Maquim.OfficeInstaller
 {
@@ -18,17 +15,9 @@ namespace Maquim.OfficeInstaller
     internal static class LocalAdminAccount
     {
         internal const string Name = "Maquim";
-        internal static string EmbeddedPassword()
+        public static bool RequiresPassword()
         {
-            using (var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("Maquim.LocalAdminPassword"))
-            {
-                if (stream == null) throw new InvalidOperationException("Senha da conta Maquim não foi incorporada nesta compilação.");
-                using (var reader = new StreamReader(stream, new UTF8Encoding(false, true))) {
-                    string value = reader.ReadToEnd();
-                    if (String.IsNullOrEmpty(value)) throw new InvalidOperationException("Senha da conta Maquim ausente na compilação.");
-                    return value;
-                }
-            }
+            using (var store = new WindowsLocalAccountStore()) return !store.Exists();
         }
 
         internal static string Ensure(ILocalAccountStore store, Func<string> getPassword)
@@ -38,7 +27,7 @@ namespace Maquim.OfficeInstaller
                 bool exists = store.Exists();
                 if (!exists) {
                     string password = getPassword();
-                    if (String.IsNullOrEmpty(password)) throw new InvalidOperationException("Senha da conta Maquim ausente na compilação.");
+                    if (String.IsNullOrWhiteSpace(password)) throw new InvalidOperationException("Informe a senha da conta Maquim nesta execução.");
                     store.Create(password); created = true;
                 }
                 store.EnsureAdministrator();
@@ -50,10 +39,10 @@ namespace Maquim.OfficeInstaller
             }
         }
 
-        public static string Ensure()
+        public static string Ensure(string password)
         {
             if (!new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator)) throw new InvalidOperationException("Execute o instalador como administrador para criar a conta Maquim.");
-            using (var store = new WindowsLocalAccountStore()) return Ensure(store, EmbeddedPassword);
+            using (var store = new WindowsLocalAccountStore()) return Ensure(store, () => password);
         }
     }
 

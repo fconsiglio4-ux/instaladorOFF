@@ -1,48 +1,29 @@
-MAQUIM - INSTALADOR OFFICE 365 - 1.1.1
+MAQUIM - INSTALADOR OFFICE 365 - 1.1.2
 
-1. Extraia o ZIP baixado em Actions > Compilar instalador Windows > Artifacts.
-2. Coloque o seu IMG/ISO do O365ProPlusRetail ao lado de Maquim-Office-Setup.exe.
-3. Abra o EXE e confirme a solicitacao de administrador do Windows.
-4. Selecione arquitetura e idioma existentes na imagem. Padrao: 64 bits / pt-br.
-5. Preencha o serial do computador e patrimonio (ambos obrigatorios).
-6. Confira a opcao de ativacao e aceite os termos da Microsoft.
-7. Clique em Avancar, confira os dados e clique em Instalar Office.
-8. O token incorporado na compilacao e salvo automaticamente para a conta
-   Windows atual. Configurar integracao permite substitui-lo no futuro.
-   Sem rede, o registro fica pendente. Nunca use credenciais do banco de dados.
-9. A fila persiste em LOCALAPPDATA\Maquim\ComputerInstallations e e reenviada
-   ao abrir, no login e a cada 15 minutos pela mesma conta com sessao ativa.
-   O registro so sai da fila apos confirmacao do UUID pela API.
+1. Extraia o ZIP e coloque a imagem IMG/ISO junto do Maquim-Office-Setup.exe.
+2. Abra o EXE como administrador.
+3. Em Configurar integracao, informe o token do Roteiro. Ele sera salvo de forma
+   protegida para a conta Windows atual. Nao use credenciais do banco de dados.
+4. Escolha a imagem/pasta, arquitetura e idioma disponiveis na midia.
+5. Preencha serial do computador e patrimonio (obrigatorios). Confira os dados.
+6. Clique em Instalar Office. Se a conta local Maquim nao existir, informe a
+   senha e sua confirmacao na janela que aparecera. A conta sera administradora.
+7. Se Maquim ja existir, sua senha sera preservada e o grupo sera verificado.
+8. Aguarde o Office e a coleta dos dados reais. Sem rede, o registro fica pendente.
 
-Uma unica imagem ao lado do EXE e selecionada automaticamente. Com varias
-imagens, use Imagem. Tambem e possivel usar Pasta e selecionar a raiz extraida,
-que deve conter Office\Data. A midia nao e enviada para a internet.
+Token e senha nao estao incorporados no EXE. A senha nao e guardada pelo
+instalador nem enviada ao Roteiro. O token protegido permite os reenvios.
+A fila fica em LOCALAPPDATA\Maquim\ComputerInstallations e sobrevive ao fechamento
+e reinicializacao. Reenvia ao abrir, no login e a cada 15 minutos com a mesma
+conta Windows em sessao ativa. Nao reinstale o Office apenas por envio pendente.
 
-Instalacao: arquivos locais, versao fixada na midia, sem download previo do
-Office. A midia deve estar completa para o idioma/arquitetura escolhidos.
-Atualizacoes futuras do Office podem usar internet normalmente.
+O instalador nao remove Office anterior, nao fecha documentos e nao reinicia o
+Windows. Feche os aplicativos antes de iniciar. Use Abrir registros em caso de
+falha. Logs detalhados do ODT ficam em TEMP da conta administradora.
 
-Ativacao opcional: Ohook 3.12, revisao fixa do projeto Microsoft Activation
-Scripts, com SHA-256 verificado antes da execucao. Requer internet para baixar
-o script. Altera componentes de licenciamento e nao comprova licenca Microsoft.
-Desmarque a opcao para usar a ativacao oficial por conta licenciada.
+A opcao de ativacao existente permanece selecionavel. A instalacao usa midia
+local; a etapa de ativacao online exige internet e e registrada separadamente.
 
-Feche os aplicativos do Office antes de iniciar. O instalador nao remove
-versoes anteriores, nao fecha documentos e nao reinicia o computador.
-Em caso de arquitetura conflitante, remova a versao anterior manualmente.
-Se houver reinicializacao pendente da instalacao, a ativacao sera adiada;
-reinicie e execute novamente o instalador para concluir o fluxo.
-
-Registros: botao Abrir registros, em ProgramData\MaquimOffice\Runs.
-installation.log: etapas do instalador.
-activation.log e activation-error.log: saida do script de ativacao.
-Erros detalhados do Office Deployment Tool: pasta TEMP do usuario administrador.
-
-O EXE nao possui certificado de assinatura de codigo da Maquim.
 Requer Windows 10/11, .NET Framework 4.8 e Windows PowerShell 5.1.
-A compatibilidade final depende da versao do Office e deve ser validada
-em um computador piloto com sua imagem antes da distribuicao em lote.
-
-O instalador cria a conta local Maquim como administradora antes do Office.
-Uma conta Maquim existente tem sua senha preservada. A senha nao aparece nos
-logs ou nos dados enviados ao Roteiro. Consulte docs-CONTA-MAQUIM.md no repo.
+O EXE Maquim nao possui certificado de assinatura de codigo.
+Valide uma instalacao real no piloto antes da distribuicao em lote.

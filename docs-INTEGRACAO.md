@@ -1,4 +1,4 @@
-# Instalações → Computadores — instalador 1.1.1
+# Instalações → Computadores — instalador 1.1.2
 
 O instalador mantém o uso da mídia IMG/ISO/pasta, a escolha de idioma e
 arquitetura, as verificações de Office e a ativação opcional existentes.
@@ -13,13 +13,12 @@ validação com uma instalação real. Nenhum registro fictício é enviado à p
 
 1. Baixe e extraia o artefato do GitHub Actions. Coloque a mídia junto do EXE.
 2. Abra o instalador com a conta Windows que será usada para instalar e reenviar.
-3. O token é incorporado durante a compilação, usando o segredo do GitHub
-   Actions `INSTALLATIONS_INGEST_TOKEN`. No primeiro uso, ele é salvo
-   automaticamente na configuração protegida. Configurar integração e variável
-   de ambiente permanecem disponíveis para futuras substituições explícitas.
-4. Não use credenciais Supabase/banco. O token é incluído no executável e no
-   agente como recurso binário, mas não no fonte público, no comando agendado,
-   nos argumentos de processo ou nos logs. Quem tiver o EXE poderá extraí-lo.
+3. Em **Configurar integração**, informe o mesmo `INSTALLATIONS_INGEST_TOKEN`
+   do Roteiro Maquim. Ele será salvo de forma protegida no Windows. A variável
+   de ambiente com esse nome também pode configurá-lo durante a execução.
+4. Não use credenciais do banco. Token e senha não entram no código público,
+   no executável, na tarefa agendada, nos argumentos de processo ou nos logs.
+
 
 O token é protegido com DPAPI `CurrentUser`. A configuração, fila e agente
 ficam em `%LOCALAPPDATA%\Maquim\ComputerInstallations` da **identidade Windows
@@ -31,8 +30,7 @@ agendados exigem uma sessão ativa dessa conta. Para o fluxo normal, eleve
 com UAC sob a própria conta do técnico, que precisa ter direitos de instalação.
 Não copie o arquivo DPAPI para outra conta ou computador.
 
-A falta de internet não impede a instalação: o JSON fica pendente. O token
-incorporado é configurado automaticamente se não há uma substituição salva.
+A falta de internet não impede a instalação: o JSON fica pendente. Sem token configurado, a fila é preservada até a configuração local.
 Falha em preparar a pasta persistente ou registrar a tarefa é apresentada antes
 que uma nova instalação seja iniciada; corrija em Configurar integração.
 
@@ -60,7 +58,7 @@ UUID da execução. Depois de a etapa de instalação/ativação terminar, o C#:
   do Click-to-Run na visão correta do registro;
 - exige `O365ProPlusRetail`, build válido, `WINWORD.EXE` no caminho instalado,
   versão de arquivo válida e arquitetura PE compatível com `Platform`;
-- inclui a versão do instalador em execução (1.1.1) e a hora final local com offset.
+- inclui a versão do instalador em execução (1.1.2) e a hora final local com offset.
 
 A descrição inclui o build detectado do pacote e a versão real do Word, que
 podem diferir dentro de uma atualização. A versão da mídia não é usada como
@@ -119,8 +117,6 @@ No Windows 10/11 com .NET Framework 4.8 e Windows PowerShell 5.1:
 
 ```powershell
 ./tests/Test-Media.ps1
-./scripts/Build.ps1 -TestOnly
-# O build final exige INSTALLATIONS_INGEST_TOKEN no ambiente.
 ./scripts/Build.ps1
 ```
 
@@ -170,23 +166,15 @@ no computador Windows do técnico. Não foram criados registros fictícios.
 - `src/SyncAgent.cs`, `src/ComputerSyncProgram.cs`: agente persistente e instalação.
 - `src/Register-ComputerSync.ps1`, `src/sync.manifest`: tarefa e execução sem UAC.
 - `src/Install-Office.ps1`: marcador exclusivo de instalação confirmada.
-- `src/app.manifest`: versão 1.1.1.
+- `src/app.manifest`: versão 1.1.2.
 - `scripts/Build.ps1`: compila/incorpora agente e executa testes simulados.
 - `tests/IntegrationTests.cs`, `tests/Test-Media.ps1`: regressões e contrato.
 - workflow, README, LEIA-ME e este documento: build, uso e piloto.
 
-## Configuração do token para a compilação final
+## Credenciais durante a execução
 
-No GitHub, abra Settings → Secrets and variables → Actions → New repository
-secret. Nome: `INSTALLATIONS_INGEST_TOKEN`; valor: o mesmo token autorizado do
-Roteiro Maquim. Salve e execute novamente o workflow. Os testes simulados não
-precisam desse segredo e nunca distribuem o EXE com token fictício.
-
-O recurso é incorporado nos três programas da compilação (instalador, agente
-e testes), e o arquivo temporário usado pelo compilador é apagado no finally.
-O token não passa como argumento de processo. A compilação 1.1.1 também prepara a conta local Maquim conforme
-[documentação da conta](docs-CONTA-MAQUIM.md).
-
-O responsável confirmou expressamente a incorporação do token e da senha ao
-executável após ser informado de que podem ser recuperados por quem obtiver
-o arquivo. Os valores reais permanecem fora do fonte público.
+A partir de 1.1.2, nenhum segredo é incorporado ao build. Configure o token
+na máquina em Configurar integração. A senha para criar Maquim é pedida ao
+técnico em uma janela com confirmação, somente se a conta ainda não existir.
+Veja [o fluxo da conta local](docs-CONTA-MAQUIM.md). O workflow não lê os segredos
+anteriormente cadastrados no GitHub.

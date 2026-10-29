@@ -41,7 +41,7 @@ internal static class IntegrationTests
         temporary = Path.Combine(Path.GetTempPath(), "Maquim-computer-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
         try {
-            TestInputsAndNavigation(); TestDetection(); TestContract(); TestAcknowledgements(); TestQueue(); TestAuthenticationAndBlocks(); TestTransport(); TestEmbeddedTokenAndLocalAccount();
+            TestInputsAndNavigation(); TestDetection(); TestContract(); TestAcknowledgements(); TestQueue(); TestAuthenticationAndBlocks(); TestTransport(); TestRuntimeTokenAndLocalAccount();
             Console.WriteLine("OK: " + assertions + " verificacoes; transporte sempre simulado; nenhum POST em producao."); return 0;
         } catch (Exception ex) { Console.Error.WriteLine(ex.ToString()); return 1; }
         finally { Directory.Delete(temporary, true); }
@@ -195,17 +195,18 @@ internal static class IntegrationTests
         public void Dispose() { }
     }
 
-    static void TestEmbeddedTokenAndLocalAccount()
+    static void TestRuntimeTokenAndLocalAccount()
     {
         string previous = Environment.GetEnvironmentVariable("INSTALLATIONS_INGEST_TOKEN");
         try {
             Environment.SetEnvironmentVariable("INSTALLATIONS_INGEST_TOKEN", null);
             var q = new ComputerQueue(Path.Combine(temporary, "embedded-token"));
             q.ImportEnvironmentToken();
-            Assert(q.LoadToken() == Release.EmbeddedIngestToken, "Token incorporado nao configurado automaticamente");
-            Assert(new ComputerQueue(q.Root).LoadToken() == Release.EmbeddedIngestToken, "Agente nao recuperou token incorporado");
-            q.SaveToken("LOCAL-OVERRIDE-TEST"); q.ImportEnvironmentToken();
-            Assert(q.LoadToken() == "LOCAL-OVERRIDE-TEST", "Token incorporado sobrescreveu configuracao explicita");
+            Assert(q.LoadToken() == "", "Token preenchido sem configuracao local");
+            q.SaveToken("LOCAL-OVERRIDE-TEST");
+            Assert(new ComputerQueue(q.Root).LoadToken() == "LOCAL-OVERRIDE-TEST", "Token protegido nao persistiu");
+            q.ImportEnvironmentToken();
+            Assert(q.LoadToken() == "LOCAL-OVERRIDE-TEST", "Configuracao salva foi alterada sem instrucao");
             Environment.SetEnvironmentVariable("INSTALLATIONS_INGEST_TOKEN", "ENV-OVERRIDE-TEST"); q.ImportEnvironmentToken();
             Assert(q.LoadToken() == "ENV-OVERRIDE-TEST", "Substituicao por ambiente nao funcionou");
         } finally { Environment.SetEnvironmentVariable("INSTALLATIONS_INGEST_TOKEN", previous); }
@@ -229,6 +230,23 @@ internal static class IntegrationTests
         var noPassword=new FakeAccounts();
         Throws(()=>LocalAdminAccount.Ensure(noPassword, ()=>""), "Senha ausente aceita");
         Assert(noPassword.Creates==0, "Conta sem senha criada");
-        Throws(()=>LocalAdminAccount.EmbeddedPassword(), "Testes nao devem conter senha real embutida");
+        Assert(!typeof(IntegrationTests).Assembly.GetManifestResourceNames().Any(n => n.Contains("IngestToken") || n.Contains("LocalAdminPassword")), "Recurso de credencial incorporado indevidamente");
+        Throws(()=>AccountPasswordDialog.ValidatePassword("", ""), "Dialogo aceitou senha vazia");
+        Throws(()=>AccountPasswordDialog.ValidatePassword("   ", "   "), "Dialogo aceitou senha somente espacos");
+        Throws(()=>AccountPasswordDialog.ValidatePassword("Runtime-Test", "Different"), "Dialogo aceitou confirmacao divergente");
+        Throws(()=>AccountPasswordDialog.ValidatePassword(new string('x',257),new string('x',257)), "Dialogo aceitou senha longa");
+        using (var dialog = new AccountPasswordDialog()) {
+            Assert(dialog.password.Text == "" && dialog.confirmation.Text == "", "Senha preenchida automaticamente");
+            Assert(dialog.password.UseSystemPasswordChar && dialog.confirmation.UseSystemPasswordChar, "Campos de senha nao mascarados");
+            dialog.password.Text = " Runtime-Test "; dialog.confirmation.Text = " Runtime-Test ";
+            dialog.PrepareSubmission();
+            Assert(dialog.password.Text == "" && dialog.confirmation.Text == "", "Senha permaneceu nos controles apos confirmar");
+            Assert(dialog.TakePassword() == " Runtime-Test ", "Senha foi aparada ou alterada");
+            Assert(dialog.TakePassword() == null, "Senha retida apos transferencia");
+        }
+        using (var cancelled = new AccountPasswordDialog()) {
+            cancelled.password.Text = "Cancelled-Test";
+            Assert(cancelled.TakePassword() == null, "Senha foi aceita sem confirmacao");
+        }
     }
 }
