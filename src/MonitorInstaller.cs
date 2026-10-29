@@ -3,6 +3,8 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.ServiceProcess;
+using Microsoft.Win32;
+using System.Linq;
 
 namespace Maquim.OfficeInstaller
 {
@@ -26,6 +28,7 @@ namespace Maquim.OfficeInstaller
             if (exists) using (var controller = new ServiceController(Service)) {
                 if (controller.Status != ServiceControllerStatus.Stopped) { controller.Stop(); controller.WaitForStatus(ServiceControllerStatus.Stopped, TimeSpan.FromSeconds(45)); }
             }
+            try {
             var store = new MonitorStore(); store.Configure(installationId, input, token);
             string directory = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Maquim", "ComputerMonitor");
             Directory.CreateDirectory(directory);
@@ -34,11 +37,23 @@ namespace Maquim.OfficeInstaller
                 if (resource == null) throw new InvalidOperationException("Serviço ausente no instalador.");
                 using (var memory = new MemoryStream()) { resource.CopyTo(memory); ComputerQueue.AtomicWrite(exe, memory.ToArray(), true); }
             }
+            string helper = Path.Combine(directory, "Maquim-ComputerLocation-" + Release.Version + ".exe");
+            using (var resource = Assembly.GetExecutingAssembly().GetManifestResourceStream("Maquim-ComputerLocation.exe")) {
+                if (resource == null) throw new InvalidOperationException("Auxiliar de localização ausente.");
+                using (var memory = new MemoryStream()) { resource.CopyTo(memory); var bytes = memory.ToArray(); if (!File.Exists(helper) || !File.ReadAllBytes(helper).SequenceEqual(bytes)) ComputerQueue.AtomicWrite(helper, bytes, true); }
+            }
+            using (var machine = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, Environment.Is64BitOperatingSystem ? RegistryView.Registry64 : RegistryView.Registry32))
+            using (var run = machine.CreateSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"))
+                run.SetValue("MaquimComputerLocation", "\"" + helper + "\"", RegistryValueKind.String);
             string parameters = " binPath= \"\\\"" + exe + "\\\"\" start= delayed-auto obj= \"NT AUTHORITY\\LocalService\" DisplayName= \"Maquim - Monitor de Computadores\"";
             SC((exists ? "config " : "create ") + Service + parameters);
             SC("description " + Service + " \"Informa IP, identificação e espaço de disco ao Roteiro Maquim a cada 12 horas e em alterações de IP.\"");
             SC("failure " + Service + " reset= 86400 actions= restart/60000/restart/60000/restart/60000");
             using (var controller = new ServiceController(Service)) { controller.Start(); controller.WaitForStatus(ServiceControllerStatus.Running, TimeSpan.FromSeconds(45)); }
+            } catch {
+                if (exists) try { using (var controller = new ServiceController(Service)) { if (controller.Status == ServiceControllerStatus.Stopped) controller.Start(); } } catch { }
+                throw;
+            }
         }
     }
 }

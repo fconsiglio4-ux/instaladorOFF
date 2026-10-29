@@ -61,3 +61,7 @@ sc.exe delete MaquimComputerMonitor
 ```
 
 Após confirmar remoção, a TI pode apagar a pasta do binário; conservar dados pendentes até decidir sua destinação. Remover o serviço não altera o Office nem o histórico no Roteiro. Os dados e o token só são apagados mediante ação explícita da TI.
+
+## Atualização 1.3.0
+
+O agente também envia localização Windows ou aproximada pelo IP público, respeitando permissões e identificando a origem e o horário. Isso adiciona o campo opcional location na rota de status e um auxiliar de sessão; ver [docs-LOCALIZACAO.md](docs-LOCALIZACAO.md). Os contratos e as filas anteriores continuam separados.

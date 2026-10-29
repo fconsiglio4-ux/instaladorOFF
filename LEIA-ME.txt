@@ -30,3 +30,6 @@ Valide uma instalacao real no piloto antes da distribuicao em lote.
 
 VERSAO 1.2.0 - AGENTE DE MONITORAMENTO
 Apos confirmar o Office, instala MaquimComputerMonitor como LocalService, inicio automatico. Informa IPv4 local, serie, patrimonio e discos a cada 12 horas e em mudancas de IP. Funciona sem login, enquanto o PC estiver ligado. Sem rede, guarda fila. Configure o token em Configurar integracao. Publicar a API de status no Roteiro antes do teste integrado. Consulte docs-MONITORAMENTO.md no repositorio.
+
+VERSAO 1.3.0 - LOCALIZACAO
+Publicar primeiro a API atualizada e aplicar a migracao computer_location no Roteiro. O servico usa Windows quando recebe posicao valida/recente do auxiliar; caso contrario, consulta localizacao aproximada por IP publico. No proximo login o auxiliar visivel permite configurar o uso da localizacao do Windows. Sem ambas as fontes, envia status sem coordenadas e preserva ultima posicao conhecida no painel. Consulte docs-LOCALIZACAO.md no repositorio.

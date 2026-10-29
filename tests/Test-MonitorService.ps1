@@ -39,6 +39,9 @@ try {
     (Get-Service $name).WaitForStatus('Running', [timespan]::FromSeconds(30))
     if ([IO.File]::ReadAllText($files[0].FullName) -ne $first) { throw 'Reinicio alterou o registro pendente.' }
     if (Test-Path (Join-Path $root 'token.dpapi')) { throw 'Teste nao pode criar token.' }
+    $startup = (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run').MaquimComputerLocation
+    if ($startup -notmatch 'Maquim-ComputerLocation-1.3.0.exe') { throw 'Auxiliar nao configurado para o login.' }
+    if (Test-Path (Join-Path $root 'ip-location.json')) { throw 'Teste sem token nao deve consultar IP publico.' }
     Write-Host 'Servico real: LocalService, coleta, fila offline e reinicio validados sem token e sem envio em producao.'
 } finally {
     $svc = Get-Service $name -ErrorAction SilentlyContinue
@@ -48,4 +51,5 @@ try {
     }
     if (Test-Path $root) { Remove-Item -LiteralPath $root -Recurse -Force }
     if (Test-Path $binaryDirectory) { Remove-Item -LiteralPath $binaryDirectory -Recurse -Force }
+    Remove-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -Name 'MaquimComputerLocation' -ErrorAction SilentlyContinue
 }

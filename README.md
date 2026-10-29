@@ -1,3 +1,7 @@
+# Versão atual 1.3.0 — localização Windows com alternativa por IP público
+
+Ver [docs-LOCALIZACAO.md](docs-LOCALIZACAO.md) para publicar a API, aplicar a migração e configurar a localização no Windows.
+
 # Versão 1.2.0 — agente de monitoramento
 
 Serviço Windows instalado após confirmar o Office, reaproveitando série e patrimônio. Envia IPv4 local e espaço de discos a cada 12 horas e em mudanças de IP, mesmo sem login. Instruções, publicação da API, testes e remoção: [docs-MONITORAMENTO.md](docs-MONITORAMENTO.md).
@@ -71,3 +75,7 @@ e SHA-256. O executável Maquim não possui assinatura de código.
 
 O piloto real deve confirmar montagem da imagem, instalação, login da conta e
 exibição dos dados no Roteiro. O runner não instala Office nem cria a conta local.
+
+## Versão 1.3.0 — localização Windows com alternativa por IP
+
+Inclui auxiliar visível na sessão do usuário e localização aproximada por IP público quando a posição do Windows não está disponível. Origem, precisão e horário explícitos, última posição conhecida e link para mapa no Roteiro. Migração/publicação devem preceder a instalação: [docs-LOCALIZACAO.md](docs-LOCALIZACAO.md).

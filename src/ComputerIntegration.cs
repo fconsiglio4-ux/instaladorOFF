@@ -19,7 +19,7 @@ namespace Maquim.OfficeInstaller
 {
     internal static class Release
     {
-        public const string Version = "1.2.0";
+        public const string Version = "1.3.0";
     }
 
     internal sealed class TechnicianInput
