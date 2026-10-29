@@ -18,7 +18,11 @@ namespace Maquim.OfficeInstaller
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new InstallerForm());
+            using (var choice = new SetupModeDialog()) {
+                if (choice.ShowDialog() != DialogResult.OK) return;
+                if (choice.SelectedMode == 0) Application.Run(new InstallerForm());
+                else Application.Run(new AgentSetupForm(choice.SelectedMode == 2));
+            }
         }
     }
 

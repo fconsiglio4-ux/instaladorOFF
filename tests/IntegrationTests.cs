@@ -41,6 +41,7 @@ internal static class IntegrationTests
         temporary = Path.Combine(Path.GetTempPath(), "Maquim-computer-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
         try {
+            AgentSetupTests.Run();
             TestInputsAndNavigation(); TestDetection(); TestContract(); TestAcknowledgements(); TestQueue(); TestAuthenticationAndBlocks(); TestTransport(); TestRuntimeTokenAndLocalAccount();
             Console.WriteLine("OK: " + assertions + " verificacoes; transporte sempre simulado; nenhum POST em producao."); return 0;
         } catch (Exception ex) { Console.Error.WriteLine(ex.ToString()); return 1; }

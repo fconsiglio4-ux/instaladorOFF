@@ -1,3 +1,7 @@
+# Versão atual 1.4.0 — instalação e atualização independente do agente
+
+O pacote inclui **Maquim-Agente-Setup.exe** e três opções no instalador principal: Office + agente, somente agente e atualizar/reparar. Atualização preserva identidade, token e filas. Ver [docs-AGENTE-INDEPENDENTE.md](docs-AGENTE-INDEPENDENTE.md).
+
 # Versão atual 1.3.0 — localização Windows com alternativa por IP público
 
 Ver [docs-LOCALIZACAO.md](docs-LOCALIZACAO.md) para publicar a API, aplicar a migração e configurar a localização no Windows.

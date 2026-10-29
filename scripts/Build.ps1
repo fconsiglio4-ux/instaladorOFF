@@ -41,20 +41,26 @@ $arguments = @('/nologo','/target:winexe','/platform:anycpu','/optimize+','/code
     "/win32manifest:$root\src\app.manifest", "/out:$exe", "/resource:$setup,setup.exe",
     "/resource:$root\src\Install-Office.ps1,Install-Office.ps1", "/resource:$root\src\OfficeMedia.psm1,OfficeMedia.psm1",
     "/resource:$locationExe,Maquim-ComputerLocation.exe", "/resource:$monitorExe,Maquim-ComputerMonitor.exe", "/resource:$syncExe,Maquim-ComputerSync.exe", "/resource:$root\src\Register-ComputerSync.ps1,Register-ComputerSync.ps1",
-    "$root\src\Program.cs", "$root\src\ComputerIntegration.cs", "$root\src\SyncAgent.cs", "$root\src\MonitorCore.cs", "$root\src\LocationCore.cs", "$root\src\MonitorInstaller.cs", "$root\src\LocalAdminAccount.cs", "$root\src\AccountPasswordDialog.cs") + $commonReferences
+    "$root\src\Program.cs", "$root\src\AgentSetupForm.cs", "$root\src\AgentSetupPlan.cs", "$root\src\ComputerIntegration.cs", "$root\src\SyncAgent.cs", "$root\src\MonitorCore.cs", "$root\src\LocationCore.cs", "$root\src\MonitorInstaller.cs", "$root\src\LocalAdminAccount.cs", "$root\src\AccountPasswordDialog.cs") + $commonReferences
 & $compiler @arguments
 if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao C#.' }
+$agentSetupExe = Join-Path $OutputDirectory 'Maquim-Agente-Setup.exe'
+& $compiler '/nologo' '/target:winexe' '/platform:anycpu' '/optimize+' '/codepage:65001' '/reference:System.Windows.Forms.dll' '/reference:System.Drawing.dll' @commonReferences "/win32manifest:$root\src\app.manifest" "/out:$agentSetupExe" "/resource:$locationExe,Maquim-ComputerLocation.exe" "/resource:$monitorExe,Maquim-ComputerMonitor.exe" "$root\src\AgentSetupProgram.cs" "$root\src\AgentSetupForm.cs" "$root\src\AgentSetupPlan.cs" "$root\src\MonitorInstaller.cs" "$root\src\MonitorCore.cs" "$root\src\LocationCore.cs" "$root\src\ComputerIntegration.cs"
+if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao do instalador independente do agente.' }
 # Verifica os binarios reais sem executa-los ou criar contas no runner.
-foreach ($binary in @($exe, $syncExe, $monitorExe, $locationExe)) {
+foreach ($binary in @($exe, $agentSetupExe, $syncExe, $monitorExe, $locationExe)) {
     $assembly = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($binary))
     $resources = $assembly.GetManifestResourceNames()
     if (@($resources | Where-Object { $_ -match 'IngestToken|LocalAdminPassword' }).Count -gt 0) {
         throw 'O binario nao pode conter recursos de credenciais.'
     }
 }
+$agentAssembly = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($agentSetupExe))
+if (@($agentAssembly.GetManifestResourceNames() | Where-Object { $_ -match 'setup.exe|Install-Office|OfficeMedia|ComputerSync|Register-ComputerSync' }).Count -gt 0) { throw 'Instalador do agente nao pode conter recursos de instalacao do Office.' }
+if (@($agentAssembly.GetTypes() | Where-Object { $_.Name -match 'LocalAdminAccount|InstallerForm|AccountPasswordDialog' }).Count -gt 0) { throw 'Instalador do agente nao pode criar contas ou executar instalador do Office.' }
 # Testes usam o mesmo codigo da interface e integracao, sempre com transporte simulado.
 $tests = Join-Path $build 'IntegrationTests.exe'
-& $compiler '/nologo' '/target:exe' '/platform:anycpu' '/codepage:65001' '/main:IntegrationTests' '/reference:System.Windows.Forms.dll' '/reference:System.Drawing.dll' @commonReferences "/out:$tests" "$root\src\Program.cs" "$root\src\ComputerIntegration.cs" "$root\src\SyncAgent.cs" "$root\src\MonitorCore.cs" "$root\src\LocationCore.cs" "$root\src\MonitorInstaller.cs" "$root\src\LocalAdminAccount.cs" "$root\src\AccountPasswordDialog.cs" "$root\tests\IntegrationTests.cs"
+& $compiler '/nologo' '/target:exe' '/platform:anycpu' '/codepage:65001' '/main:IntegrationTests' '/reference:System.Windows.Forms.dll' '/reference:System.Drawing.dll' @commonReferences "/out:$tests" "$root\src\Program.cs" "$root\src\AgentSetupForm.cs" "$root\src\AgentSetupPlan.cs" "$root\src\ComputerIntegration.cs" "$root\src\SyncAgent.cs" "$root\src\MonitorCore.cs" "$root\src\LocationCore.cs" "$root\src\MonitorInstaller.cs" "$root\src\LocalAdminAccount.cs" "$root\src\AccountPasswordDialog.cs" "$root\tests\IntegrationTests.cs" "$root\tests\AgentSetupTests.cs"
 if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao dos testes.' }
 & $tests
 if ($LASTEXITCODE -ne 0) { throw 'Falha nos testes da integracao.' }
@@ -64,15 +70,24 @@ if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao dos testes de monitorament
 & $monitorTests
 if ($LASTEXITCODE -ne 0) { throw 'Falha nos testes de monitoramento.' }
 $provisionTests = Join-Path $build 'MonitorProvision.exe'
-& $compiler '/nologo' '/target:exe' '/platform:anycpu' '/codepage:65001' @commonReferences "/out:$provisionTests" "/resource:$monitorExe,Maquim-ComputerMonitor.exe" "/resource:$locationExe,Maquim-ComputerLocation.exe" "$root\src\ComputerIntegration.cs" "$root\src\MonitorCore.cs" "$root\src\LocationCore.cs" "$root\src\MonitorInstaller.cs" "$root\tests\MonitorProvision.cs"
+& $compiler '/nologo' '/target:exe' '/platform:anycpu' '/codepage:65001' @commonReferences "/out:$provisionTests" "/resource:$monitorExe,Maquim-ComputerMonitor.exe" "/resource:$locationExe,Maquim-ComputerLocation.exe" "$root\src\ComputerIntegration.cs" "$root\src\MonitorCore.cs" "$root\src\LocationCore.cs" "$root\src\MonitorInstaller.cs" "$root\src\AgentSetupPlan.cs" "$root\tests\MonitorProvision.cs"
 if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao da homologacao do servico.' }
+# Runner usa um servico com versao anterior para exercitar troca real do binario.
+$legacyIntegration = Join-Path $build 'ComputerIntegration-legacy.cs'
+([IO.File]::ReadAllText("$root\src\ComputerIntegration.cs").Replace('Version = "1.4.0"', 'Version = "1.3.0"')) | Set-Content -LiteralPath $legacyIntegration -Encoding UTF8
+$legacyMonitor = Join-Path $build 'Maquim-ComputerMonitor-legacy.exe'
+& $compiler '/nologo' '/target:winexe' '/platform:anycpu' '/codepage:65001' @commonReferences "/out:$legacyMonitor" $legacyIntegration "$root\src\MonitorCore.cs" "$root\src\LocationCore.cs" "$root\src\LocationPipe.cs" "$root\src\MonitorServiceProgram.cs"
+if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao da fixture de versao anterior.' }
+$legacyProvision = Join-Path $build 'MonitorProvisionLegacy.exe'
+& $compiler '/nologo' '/target:exe' '/platform:anycpu' '/codepage:65001' @commonReferences "/out:$legacyProvision" "/resource:$legacyMonitor,Maquim-ComputerMonitor.exe" "/resource:$locationExe,Maquim-ComputerLocation.exe" "$root\src\ComputerIntegration.cs" "$root\src\MonitorCore.cs" "$root\src\LocationCore.cs" "$root\src\MonitorInstaller.cs" "$root\src\AgentSetupPlan.cs" "$root\tests\MonitorProvision.cs"
+if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao do provisionamento de fixture.' }
 if ($TestOnly) {
-    Remove-Item -LiteralPath $exe -Force
+    Remove-Item -LiteralPath $exe, $agentSetupExe -Force
     Write-Host 'Compilacao de teste validada e removida; credenciais sao fornecidas somente em tempo de execucao.'
     return
 }
 Copy-Item (Join-Path $root 'LEIA-ME.txt') $OutputDirectory -Force
-$hash = Get-FileHash -LiteralPath $exe -Algorithm SHA256
-"$($hash.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($exe))" | Set-Content (Join-Path $OutputDirectory 'SHA256SUMS.txt') -Encoding ASCII
+$hashes = foreach ($binary in @($exe, $agentSetupExe)) { $hash = Get-FileHash -LiteralPath $binary -Algorithm SHA256; "$($hash.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($binary))" }
+$hashes | Set-Content (Join-Path $OutputDirectory 'SHA256SUMS.txt') -Encoding ASCII
 Write-Host "Executavel gerado: $exe"
 
