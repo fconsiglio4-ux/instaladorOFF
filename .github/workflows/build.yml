@@ -19,6 +19,9 @@ jobs:
       - name: Compilar e testar sem incorporar credenciais
         shell: powershell
         run: ./scripts/Build.ps1
+      - name: Testar servico Windows real sem token e sem envio externo
+        shell: powershell
+        run: ./tests/Test-MonitorService.ps1 -ServiceExecutable ./build/Maquim-ComputerMonitor.exe
       - name: Publicar executavel e instrucoes
         uses: actions/upload-artifact@v4
         with:

@@ -109,7 +109,7 @@ namespace Maquim.OfficeInstaller
             if (!File.Exists(media.Text) && !Directory.Exists(media.Text)) throw new InvalidOperationException("Selecione a mídia do Office.");
             if (!accept.Checked) throw new InvalidOperationException("É necessário aceitar os termos de licença para instalar.");
             serial.Text = values.SerialNumber; asset.Text = values.AssetTag;
-            confirmation.Text = "Confira os dados antes de instalar:\n\nNúmero de série do computador: " + values.SerialNumber + "\nNúmero de patrimônio: " + values.AssetTag + "\n\nComputador: " + Environment.MachineName + "\nMídia: " + media.Text + "\nOffice: O365ProPlusRetail / " + architecture.SelectedItem + " / " + language.SelectedItem + "\nAtivação após instalar: " + (activate.Checked ? "selecionada" : "não selecionada") + "\n\nConta local: criar Maquim como administradora; a senha será solicitada nesta execução (conta existente mantém a senha).\nUse Voltar para corrigir os dados. A edição e a versão efetivas serão coletadas após a instalação.";
+            confirmation.Text = "Confira os dados antes de instalar:\n\nNúmero de série do computador: " + values.SerialNumber + "\nNúmero de patrimônio: " + values.AssetTag + "\n\nComputador: " + Environment.MachineName + "\nMídia: " + media.Text + "\nOffice: O365ProPlusRetail / " + architecture.SelectedItem + " / " + language.SelectedItem + "\nAtivação após instalar: " + (activate.Checked ? "selecionada" : "não selecionada") + "\n\nConta local: criar Maquim como administradora; a senha será solicitada nesta execução (conta existente mantém a senha).\nAgente de monitoramento: serviço automático, mesmo sem login; IP local e discos a cada 12 horas e ao mudar IP.\nUse Voltar para corrigir os dados. A edição e a versão efetivas serão coletadas após a instalação.";
             fields.Visible = false; confirmation.Visible = true; confirmation.BringToFront();
             Confirming = true; back.Visible = true; install.Text = "Instalar Office";
         }
@@ -161,7 +161,7 @@ namespace Maquim.OfficeInstaller
                 try {
                     if (queue == null) queue = new ComputerQueue();
                     string supplied = token.Text; bool unblock = retryBlocked.Checked;
-                    await Task.Run(() => { if (!String.IsNullOrWhiteSpace(supplied)) queue.SaveToken(supplied); else queue.ImportEnvironmentToken(); SyncAgent.Register(queue); if (unblock) queue.RetryBlocked(); queue.Retry(); });
+                    await Task.Run(() => { if (!String.IsNullOrWhiteSpace(supplied)) queue.SaveToken(supplied); else queue.ImportEnvironmentToken(); SyncAgent.Register(queue); MonitorInstaller.UpdateTokenIfInstalled(queue.LoadToken()); if (unblock) queue.RetryBlocked(); queue.Retry(); });
                     token.Clear(); setupProblem = null;
                 } catch { setupProblem = "Falha na configuração da integração. Verifique permissões da conta e do Agendador de Tarefas."; }
                 finally { integrationBusy = false; integration.Enabled = true; install.Enabled = true; RefreshStatus(); }
@@ -223,6 +223,11 @@ namespace Maquim.OfficeInstaller
                 Append("Registro salvo na fila de computadores: " + installationId);
                 try { await Task.Run(() => queue.Retry(null, record.installation_id)); } catch { Append("Instalação concluída; envio dos dados pendente."); }
                 string result = queue.IsPending(record.installation_id) ? "Instalação concluída; envio dos dados pendente" : "Instalação concluída; dados recebidos pelo Roteiro Maquim.";
+                try {
+                    await Task.Run(() => MonitorInstaller.Install(installationId, input, queue.LoadToken()));
+                    result += "\nAgente Maquim instalado e em execução. Status a cada 12 horas e em mudanças de IP.";
+                    if (String.IsNullOrEmpty(queue.LoadToken())) result += "\nMonitoramento aguardando token em Configurar integração.";
+                } catch { result += "\nOffice instalado, mas o agente de monitoramento não iniciou. Consulte Serviços do Windows e refaça a instalação do agente antes de entregar o computador."; }
                 Append(result); Append("Registros: " + work); RefreshStatus();
                 if (exit == 3010) result += "\nReinicie o Windows antes da ativação.";
                 else if (exit != 0) result += "\nA etapa posterior à instalação encontrou um erro. Consulte installation.log.";

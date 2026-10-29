@@ -27,3 +27,6 @@ local; a etapa de ativacao online exige internet e e registrada separadamente.
 Requer Windows 10/11, .NET Framework 4.8 e Windows PowerShell 5.1.
 O EXE Maquim nao possui certificado de assinatura de codigo.
 Valide uma instalacao real no piloto antes da distribuicao em lote.
+
+VERSAO 1.2.0 - AGENTE DE MONITORAMENTO
+Apos confirmar o Office, instala MaquimComputerMonitor como LocalService, inicio automatico. Informa IPv4 local, serie, patrimonio e discos a cada 12 horas e em mudancas de IP. Funciona sem login, enquanto o PC estiver ligado. Sem rede, guarda fila. Configure o token em Configurar integracao. Publicar a API de status no Roteiro antes do teste integrado. Consulte docs-MONITORAMENTO.md no repositorio.

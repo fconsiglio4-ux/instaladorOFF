@@ -1,3 +1,7 @@
+# Versão 1.2.0 — agente de monitoramento
+
+Serviço Windows instalado após confirmar o Office, reaproveitando série e patrimônio. Envia IPv4 local e espaço de discos a cada 12 horas e em mudanças de IP, mesmo sem login. Instruções, publicação da API, testes e remoção: [docs-MONITORAMENTO.md](docs-MONITORAMENTO.md).
+
 # Instalador Office — Maquim 1.1.2
 
 Instala O365ProPlusRetail a partir de IMG/ISO ao lado do executável ou pasta

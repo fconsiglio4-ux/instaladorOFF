@@ -26,20 +26,23 @@ Assert-MicrosoftSignature $setup
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path $compiler)) { $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
 $exe = Join-Path $OutputDirectory 'Maquim-Office-Setup.exe'
-$commonReferences = @('/reference:System.Management.dll', '/reference:System.Security.dll', '/reference:System.Web.Extensions.dll', '/reference:System.DirectoryServices.dll', '/reference:System.DirectoryServices.AccountManagement.dll')
+$commonReferences = @('/reference:System.ServiceProcess.dll', '/reference:System.Management.dll', '/reference:System.Security.dll', '/reference:System.Web.Extensions.dll', '/reference:System.DirectoryServices.dll', '/reference:System.DirectoryServices.AccountManagement.dll')
 $syncExe = Join-Path $build 'Maquim-ComputerSync.exe'
 & $compiler '/nologo' '/target:winexe' '/platform:anycpu' '/optimize+' '/codepage:65001' @commonReferences "/win32manifest:$root\src\sync.manifest" "/out:$syncExe" "$root\src\ComputerIntegration.cs" "$root\src\ComputerSyncProgram.cs"
 if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao do agente de reenvio.' }
+$monitorExe = Join-Path $build 'Maquim-ComputerMonitor.exe'
+& $compiler '/nologo' '/target:winexe' '/platform:anycpu' '/optimize+' '/codepage:65001' @commonReferences "/win32manifest:$root\src\sync.manifest" "/out:$monitorExe" "$root\src\ComputerIntegration.cs" "$root\src\MonitorCore.cs" "$root\src\MonitorServiceProgram.cs"
+if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao do servico de monitoramento.' }
 $arguments = @('/nologo','/target:winexe','/platform:anycpu','/optimize+','/codepage:65001',
     '/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll','/reference:System.Core.dll',
     "/win32manifest:$root\src\app.manifest", "/out:$exe", "/resource:$setup,setup.exe",
     "/resource:$root\src\Install-Office.ps1,Install-Office.ps1", "/resource:$root\src\OfficeMedia.psm1,OfficeMedia.psm1",
-    "/resource:$syncExe,Maquim-ComputerSync.exe", "/resource:$root\src\Register-ComputerSync.ps1,Register-ComputerSync.ps1",
-    "$root\src\Program.cs", "$root\src\ComputerIntegration.cs", "$root\src\SyncAgent.cs", "$root\src\LocalAdminAccount.cs", "$root\src\AccountPasswordDialog.cs") + $commonReferences
+    "/resource:$monitorExe,Maquim-ComputerMonitor.exe", "/resource:$syncExe,Maquim-ComputerSync.exe", "/resource:$root\src\Register-ComputerSync.ps1,Register-ComputerSync.ps1",
+    "$root\src\Program.cs", "$root\src\ComputerIntegration.cs", "$root\src\SyncAgent.cs", "$root\src\MonitorCore.cs", "$root\src\MonitorInstaller.cs", "$root\src\LocalAdminAccount.cs", "$root\src\AccountPasswordDialog.cs") + $commonReferences
 & $compiler @arguments
 if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao C#.' }
 # Verifica os binarios reais sem executa-los ou criar contas no runner.
-foreach ($binary in @($exe, $syncExe)) {
+foreach ($binary in @($exe, $syncExe, $monitorExe)) {
     $assembly = [Reflection.Assembly]::Load([IO.File]::ReadAllBytes($binary))
     $resources = $assembly.GetManifestResourceNames()
     if (@($resources | Where-Object { $_ -match 'IngestToken|LocalAdminPassword' }).Count -gt 0) {
@@ -48,10 +51,18 @@ foreach ($binary in @($exe, $syncExe)) {
 }
 # Testes usam o mesmo codigo da interface e integracao, sempre com transporte simulado.
 $tests = Join-Path $build 'IntegrationTests.exe'
-& $compiler '/nologo' '/target:exe' '/platform:anycpu' '/codepage:65001' '/main:IntegrationTests' '/reference:System.Windows.Forms.dll' '/reference:System.Drawing.dll' @commonReferences "/out:$tests" "$root\src\Program.cs" "$root\src\ComputerIntegration.cs" "$root\src\SyncAgent.cs" "$root\src\LocalAdminAccount.cs" "$root\src\AccountPasswordDialog.cs" "$root\tests\IntegrationTests.cs"
+& $compiler '/nologo' '/target:exe' '/platform:anycpu' '/codepage:65001' '/main:IntegrationTests' '/reference:System.Windows.Forms.dll' '/reference:System.Drawing.dll' @commonReferences "/out:$tests" "$root\src\Program.cs" "$root\src\ComputerIntegration.cs" "$root\src\SyncAgent.cs" "$root\src\MonitorCore.cs" "$root\src\MonitorInstaller.cs" "$root\src\LocalAdminAccount.cs" "$root\src\AccountPasswordDialog.cs" "$root\tests\IntegrationTests.cs"
 if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao dos testes.' }
 & $tests
 if ($LASTEXITCODE -ne 0) { throw 'Falha nos testes da integracao.' }
+$monitorTests = Join-Path $build 'MonitorTests.exe'
+& $compiler '/nologo' '/target:exe' '/platform:anycpu' '/codepage:65001' @commonReferences "/out:$monitorTests" "$root\src\ComputerIntegration.cs" "$root\src\MonitorCore.cs" "$root\tests\MonitorTests.cs"
+if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao dos testes de monitoramento.' }
+& $monitorTests
+if ($LASTEXITCODE -ne 0) { throw 'Falha nos testes de monitoramento.' }
+$provisionTests = Join-Path $build 'MonitorProvision.exe'
+& $compiler '/nologo' '/target:exe' '/platform:anycpu' '/codepage:65001' @commonReferences "/out:$provisionTests" "/resource:$monitorExe,Maquim-ComputerMonitor.exe" "$root\src\ComputerIntegration.cs" "$root\src\MonitorCore.cs" "$root\src\MonitorInstaller.cs" "$root\tests\MonitorProvision.cs"
+if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao da homologacao do servico.' }
 if ($TestOnly) {
     Remove-Item -LiteralPath $exe -Force
     Write-Host 'Compilacao de teste validada e removida; credenciais sao fornecidas somente em tempo de execucao.'
