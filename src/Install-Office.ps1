@@ -3,7 +3,8 @@ param(
     [Parameter(Mandatory)][string]$WorkDirectory,
     [ValidateSet('32','64')][string]$Architecture = '64',
     [ValidateSet('pt-br','en-us','es-es')][string]$Language = 'pt-br',
-    [switch]$Activate
+    [switch]$Activate,
+    [Guid]$InstallationId = ([Guid]::NewGuid())
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -72,6 +73,9 @@ try {
     if (-not $afterState.Platform) { throw 'O instalador terminou, mas o campo Platform nao foi preenchido no registro. Nao foi possivel confirmar a instalacao.' }
     if ($afterState.Platform -ne $expectedPlatform) { throw 'A arquitetura instalada nao corresponde a selecao.' }
     Write-Stage 'Instalacao do Office concluida e produto identificado no registro.'
+    # Marcador exclusivo desta execucao; a interface ainda verifica registro e
+    # executavel real antes de criar o JSON. Falha de ativacao nao apaga a instalacao.
+    $InstallationId.ToString('D') | Set-Content -LiteralPath (Join-Path $WorkDirectory 'office-installed.id') -Encoding UTF8
     if ($Activate -and -not $reboot) {
         Write-Stage 'Baixando Ohook 3.12 da revisao fixa e verificando SHA-256...'
         [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12

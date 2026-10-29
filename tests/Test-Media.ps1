@@ -13,6 +13,23 @@ function Assert-Throws([scriptblock]$Action) {
     try { & $Action | Out-Null } catch { $thrown = $true }
     Assert $thrown 'Era esperado um erro para midia incompleta.'
 }
+# Captura XML sem criar tarefa real no runner.
+function Register-ScheduledTask {
+    param($TaskName, $Xml, [switch]$Force)
+    $script:taskName = $TaskName
+    $script:taskXml = $Xml
+}
+. (Join-Path $root 'src\Register-ComputerSync.ps1')
+[xml]$task = $script:taskXml
+$ns = New-Object System.Xml.XmlNamespaceManager($task.NameTable)
+$ns.AddNamespace('t','http://schemas.microsoft.com/windows/2004/02/mit/task')
+Assert ($task.SelectSingleNode('//t:TimeTrigger/t:Repetition/t:Interval', $ns).InnerText -eq 'PT15M') 'Intervalo incorreto.'
+Assert ($null -ne $task.SelectSingleNode('//t:LogonTrigger', $ns)) 'Gatilho de login ausente.'
+Assert ($task.SelectSingleNode('//t:LogonType', $ns).InnerText -eq 'InteractiveToken') 'Tarefa nao vinculada a sessao ativa.'
+Assert ($task.SelectSingleNode('//t:RunLevel', $ns).InnerText -eq 'LeastPrivilege') 'Reenvio exige elevacao.'
+Assert ($task.SelectSingleNode('//t:Principal/t:UserId', $ns).InnerText -eq [Security.Principal.WindowsIdentity]::GetCurrent().User.Value) 'Conta de reenvio diferente.'
+Assert ($task.SelectSingleNode('//t:Command', $ns).InnerText.EndsWith('Maquim-ComputerSync.exe')) 'Executavel persistente incorreto.'
+Assert ($null -eq $task.SelectSingleNode('//t:Arguments', $ns)) 'A tarefa nao deve transportar token por argumentos.'
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('Office & Test-' + [guid]::NewGuid().ToString('N'))
 try {
     foreach ($configuration in @($null, [pscustomobject]@{}, [pscustomobject]@{ PSPath = 'Registry::Office' })) {

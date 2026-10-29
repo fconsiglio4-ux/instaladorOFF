@@ -1,11 +1,18 @@
-MAQUIM - INSTALADOR OFFICE 365 - 1.0.0
+MAQUIM - INSTALADOR OFFICE 365 - 1.1.0
 
 1. Extraia o ZIP baixado em Actions > Compilar instalador Windows > Artifacts.
 2. Coloque o seu IMG/ISO do O365ProPlusRetail ao lado de Maquim-Office-Setup.exe.
 3. Abra o EXE e confirme a solicitacao de administrador do Windows.
 4. Selecione arquitetura e idioma existentes na imagem. Padrao: 64 bits / pt-br.
-5. Confira a opcao de ativacao e aceite os termos da Microsoft antes de instalar.
-6. Clique em Instalar Office e aguarde o resultado.
+5. Preencha o serial do computador e patrimonio (ambos obrigatorios).
+6. Confira a opcao de ativacao e aceite os termos da Microsoft.
+7. Clique em Avancar, confira os dados e clique em Instalar Office.
+8. Use Configurar integracao para salvar o mesmo INSTALLATIONS_INGEST_TOKEN
+   do Roteiro Maquim, protegido para a conta Windows atual. Sem token/rede,
+   o registro fica pendente. Nunca use credenciais do banco de dados.
+9. A fila persiste em LOCALAPPDATA\Maquim\ComputerInstallations e e reenviada
+   ao abrir, no login e a cada 15 minutos pela mesma conta com sessao ativa.
+   O registro so sai da fila apos confirmacao do UUID pela API.
 
 Uma unica imagem ao lado do EXE e selecionada automaticamente. Com varias
 imagens, use Imagem. Tambem e possivel usar Pasta e selecionar a raiz extraida,

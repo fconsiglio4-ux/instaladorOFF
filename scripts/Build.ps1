@@ -25,12 +25,24 @@ Assert-MicrosoftSignature $setup
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 if (-not (Test-Path $compiler)) { $compiler = Join-Path $env:WINDIR 'Microsoft.NET\Framework\v4.0.30319\csc.exe' }
 $exe = Join-Path $OutputDirectory 'Maquim-Office-Setup.exe'
+$commonReferences = @('/reference:System.Management.dll', '/reference:System.Security.dll', '/reference:System.Web.Extensions.dll')
+$syncExe = Join-Path $build 'Maquim-ComputerSync.exe'
+& $compiler '/nologo' '/target:winexe' '/platform:anycpu' '/optimize+' '/codepage:65001' @commonReferences "/win32manifest:$root\src\sync.manifest" "/out:$syncExe" "$root\src\ComputerIntegration.cs" "$root\src\ComputerSyncProgram.cs"
+if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao do agente de reenvio.' }
 $arguments = @('/nologo','/target:winexe','/platform:anycpu','/optimize+','/codepage:65001',
     '/reference:System.Windows.Forms.dll','/reference:System.Drawing.dll','/reference:System.Core.dll',
     "/win32manifest:$root\src\app.manifest", "/out:$exe", "/resource:$setup,setup.exe",
-    "/resource:$root\src\Install-Office.ps1,Install-Office.ps1", "/resource:$root\src\OfficeMedia.psm1,OfficeMedia.psm1", "$root\src\Program.cs")
+    "/resource:$root\src\Install-Office.ps1,Install-Office.ps1", "/resource:$root\src\OfficeMedia.psm1,OfficeMedia.psm1",
+    "/resource:$syncExe,Maquim-ComputerSync.exe", "/resource:$root\src\Register-ComputerSync.ps1,Register-ComputerSync.ps1",
+    "$root\src\Program.cs", "$root\src\ComputerIntegration.cs", "$root\src\SyncAgent.cs") + $commonReferences
 & $compiler @arguments
 if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao C#.' }
+# Testes usam o mesmo codigo da interface e integracao, sempre com transporte simulado.
+$tests = Join-Path $build 'IntegrationTests.exe'
+& $compiler '/nologo' '/target:exe' '/platform:anycpu' '/codepage:65001' '/main:IntegrationTests' '/reference:System.Windows.Forms.dll' '/reference:System.Drawing.dll' @commonReferences "/out:$tests" "$root\src\Program.cs" "$root\src\ComputerIntegration.cs" "$root\src\SyncAgent.cs" "$root\tests\IntegrationTests.cs"
+if ($LASTEXITCODE -ne 0) { throw 'Falha na compilacao dos testes.' }
+& $tests
+if ($LASTEXITCODE -ne 0) { throw 'Falha nos testes da integracao.' }
 Copy-Item (Join-Path $root 'LEIA-ME.txt') $OutputDirectory -Force
 $hash = Get-FileHash -LiteralPath $exe -Algorithm SHA256
 "$($hash.Hash.ToLowerInvariant())  $([IO.Path]::GetFileName($exe))" | Set-Content (Join-Path $OutputDirectory 'SHA256SUMS.txt') -Encoding ASCII

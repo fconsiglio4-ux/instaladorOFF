@@ -18,7 +18,7 @@ jobs:
       - name: Validar scripts e configuracao offline
         shell: powershell
         run: ./tests/Test-Media.ps1
-      - name: Compilar EXE com Office Deployment Tool incorporado
+      - name: Compilar EXE, agente persistente e testar integracao simulada
         shell: powershell
         run: ./scripts/Build.ps1
       - name: Publicar executavel e instrucoes

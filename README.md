@@ -1,8 +1,13 @@
-# Instalador Office — Maquim
+# Instalador Office — Maquim 1.1.0
 
 Instalador Windows com interface para instalar **O365ProPlusRetail** a partir
 de IMG/ISO local ou pasta extraída. A imagem permanece ao lado do EXE e não
 é incluída no repositório nem no artefato de compilação.
+
+A versão 1.1.0 integra **Instalações → Computadores**, com serial e patrimônio
+obrigatórios, confirmação, coleta do Office efetivo e fila persistente.
+Leia [a documentação da integração](docs-INTEGRACAO.md) para configurar o token,
+consultar os testes e executar o piloto com dados reais.
 
 ## Baixar e usar
 
