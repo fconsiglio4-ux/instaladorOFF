@@ -46,7 +46,9 @@ namespace Maquim.OfficeInstaller
         public string agent_version { get; set; }
         public string[] ip_addresses { get; set; }
         public DiskStatus[] disks { get; set; }
+        public LocationSnapshot location { get; set; }
         public void Validate() {
+            if (location != null) location.Validate();
             new MonitorConfig { machine_id = machine_id, installation_id = installation_id, serial_number = serial_number, asset_tag = asset_tag }.Validate();
             Guid id; DateTimeOffset time;
             if (!Guid.TryParse(event_id, out id) || id == Guid.Empty || sequence_number < 1 || sequence_number > 9007199254740991L) throw new InvalidDataException("Evento inválido.");
@@ -66,6 +68,8 @@ namespace Maquim.OfficeInstaller
         public long sequence_number { get; set; }
         public string observed_at { get; set; }
         public string[] ip_addresses { get; set; }
+        public string location_source { get; set; }
+        public string agent_version { get; set; }
     }
     internal static class MonitorCollector
     {
@@ -116,7 +120,7 @@ namespace Maquim.OfficeInstaller
             // Recupera o intervalo entre enqueue e state em caso de queda/reinicio.
             foreach (var file in Directory.GetFiles(QueueDirectory, "*.json").OrderByDescending(p => p, StringComparer.Ordinal)) {
                 var r = Json.Deserialize<StatusReport>(File.ReadAllText(file)); r.Validate();
-                if (state == null || r.sequence_number > state.sequence_number) { state = new MonitorState { sequence_number = r.sequence_number, observed_at = r.observed_at, ip_addresses = r.ip_addresses }; recovered = true; }
+                if (state == null || r.sequence_number > state.sequence_number) { state = new MonitorState { sequence_number = r.sequence_number, observed_at = r.observed_at, ip_addresses = r.ip_addresses, location_source = r.location == null ? null : r.location.source, agent_version = r.agent_version }; recovered = true; }
                 break;
             }
             if (recovered) ComputerQueue.AtomicWrite(path, Encoding.UTF8.GetBytes(Json.Serialize(state)), true);
@@ -126,7 +130,7 @@ namespace Maquim.OfficeInstaller
             byte[] bytes = r.Bytes();
             string path = Path.Combine(QueueDirectory, r.sequence_number.ToString("D16", CultureInfo.InvariantCulture) + "-" + r.event_id + ".json");
             ComputerQueue.AtomicWrite(path, bytes, false);
-            ComputerQueue.AtomicWrite(Path.Combine(Root, "state.json"), Encoding.UTF8.GetBytes(Json.Serialize(new MonitorState { sequence_number = r.sequence_number, observed_at = r.observed_at, ip_addresses = r.ip_addresses })), true);
+            ComputerQueue.AtomicWrite(Path.Combine(Root, "state.json"), Encoding.UTF8.GetBytes(Json.Serialize(new MonitorState { sequence_number = r.sequence_number, observed_at = r.observed_at, ip_addresses = r.ip_addresses, location_source = r.location == null ? null : r.location.source, agent_version = r.agent_version })), true);
         }
         public void Note(string text) { ComputerQueue.AtomicWrite(Path.Combine(Root, "status.txt"), Encoding.UTF8.GetBytes(DateTimeOffset.Now.ToString("o") + " " + text), true); }
         internal static bool Ack(HttpOutcome response, string id) {
@@ -155,15 +159,25 @@ namespace Maquim.OfficeInstaller
         DateTimeOffset retryAt = DateTimeOffset.MinValue;
         public MonitorEngine(MonitorStore store) { this.store = store; }
         internal static bool Due(MonitorState state, string[] ips, DateTimeOffset now) {
-            if (state == null) return true;
+            if (state == null || state.agent_version != Release.Version) return true;
             DateTimeOffset previous = DateTimeOffset.Parse(state.observed_at, CultureInfo.InvariantCulture);
             return now >= previous.AddHours(12) || now < previous.AddMinutes(-5) || !ips.SequenceEqual(state.ip_addresses ?? new string[0]);
         }
-        public void Tick(DateTimeOffset now, Func<string[]> getIPs, Func<DiskStatus[]> getDisks, Func<byte[], string, HttpOutcome> send) {
+        public void Tick(DateTimeOffset now, Func<string[]> getIPs, Func<DiskStatus[]> getDisks, Func<byte[], string, HttpOutcome> send, Func<DateTimeOffset, string[], LocationSnapshot> getLocation = null) {
             var c = store.Config(); var state = store.State(); var ips = StatusReport.NormalizeIPs(getIPs());
             bool captured = false;
-            if (Due(state, ips, now) && Directory.GetFiles(store.QueueDirectory, "*.json").Length < 1000) {
+            bool locationChanged = false;
+            if (getLocation != null && state != null) {
+                bool windowsFresh = false;
+                try { string p = Path.Combine(store.Root, "windows-location.json"); if (File.Exists(p)) { var v = new JavaScriptSerializer().Deserialize<LocationSnapshot>(File.ReadAllText(p)); windowsFresh = v.source == "windows" && LocationSnapshot.Fresh(v, now); } } catch { }
+                locationChanged = windowsFresh != (state.location_source == "windows");
+            }
+            if ((Due(state, ips, now) || locationChanged) && Directory.GetFiles(store.QueueDirectory, "*.json").Length < 1000) {
                 var r = new StatusReport { event_id = Guid.NewGuid().ToString("D"), machine_id = c.machine_id, installation_id = c.installation_id, sequence_number = state == null ? 1 : checked(state.sequence_number + 1), observed_at = now.ToString("o"), computer_name = Environment.MachineName, serial_number = c.serial_number, asset_tag = c.asset_tag, agent_version = Release.Version, ip_addresses = ips, disks = getDisks() };
+                if (getLocation != null) {
+                    try { r.location = getLocation(now, ips); if (r.location != null) r.location.Validate(); }
+                    catch { r.location = LocationSnapshot.Unavailable("error"); }
+                }
                 store.Enqueue(r); captured = true;
             }
             if (captured || now >= retryAt) { retryAt = now.AddMinutes(15); store.Retry(send); }

@@ -75,6 +75,7 @@ static class MonitorTests
             var request = MonitorTransport.Request(123, "test");
             Check(request.RequestUri.Scheme == "https" && request.RequestUri.AbsolutePath == "/api/public/computer-status" && !request.AllowAutoRedirect && request.Timeout == 30000 && request.ReadWriteTimeout == 30000, "rota HTTPS separada, timeout e sem redirecionamentos");
             Check(MonitorCollector.IPs().Length <= 32 && MonitorCollector.Disks().Length > 0, "coletores reais executam no Windows CI");
+            LocationTests.Run(root + "-location");
             Console.WriteLine(checks + " verificações do monitor passaram.");
         } finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
     }
