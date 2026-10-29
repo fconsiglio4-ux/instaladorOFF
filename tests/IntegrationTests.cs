@@ -41,7 +41,7 @@ internal static class IntegrationTests
         temporary = Path.Combine(Path.GetTempPath(), "Maquim-computer-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
         try {
-            TestInputsAndNavigation(); TestDetection(); TestContract(); TestAcknowledgements(); TestQueue(); TestAuthenticationAndBlocks(); TestTransport(); TestEmbeddedToken();
+            TestInputsAndNavigation(); TestDetection(); TestContract(); TestAcknowledgements(); TestQueue(); TestAuthenticationAndBlocks(); TestTransport(); TestEmbeddedTokenAndLocalAccount();
             Console.WriteLine("OK: " + assertions + " verificacoes; transporte sempre simulado; nenhum POST em producao."); return 0;
         } catch (Exception ex) { Console.Error.WriteLine(ex.ToString()); return 1; }
         finally { Directory.Delete(temporary, true); }
@@ -67,6 +67,7 @@ internal static class IntegrationTests
             Throws(() => form.GoForward(), "Interface avancou sem patrimonio");
             form.serial.Text = " SN-001 "; form.asset.Text = " 000123 "; form.GoForward();
             Assert(form.Confirming && form.confirmation.Text.Contains("SN-001") && form.confirmation.Text.Contains("000123"), "Conferencia omitiu identificacao");
+            Assert(form.confirmation.Text.Contains("criar Maquim como administradora"), "Conferencia omitiu criacao da conta administrativa");
             form.GoBack();
             Assert(!form.Confirming && form.serial.Text == "SN-001" && form.asset.Text == "000123", "Voltar perdeu valores");
             form.asset.Text = "MQ-00123"; form.GoForward(); form.GoBack();
@@ -182,12 +183,23 @@ internal static class IntegrationTests
         request.Abort();
     }
 
-    static void TestEmbeddedToken()
+    sealed class FakeAccounts : ILocalAccountStore
+    {
+        public bool Present, FailCreate, FailGroup, Group, Deleted;
+        public int Creates;
+        public string Password;
+        public bool Exists() { return Present; }
+        public void Create(string password) { Creates++; if (FailCreate) throw new Exception("Simulacao de politica de senha"); Password=password; Present=true; }
+        public void EnsureAdministrator() { if (FailGroup) throw new Exception("Simulacao de acesso negado"); Group=true; }
+        public void DeleteCreatedAccount() { Deleted=true; Present=false; }
+        public void Dispose() { }
+    }
+
+    static void TestEmbeddedTokenAndLocalAccount()
     {
         string previous = Environment.GetEnvironmentVariable("INSTALLATIONS_INGEST_TOKEN");
         try {
             Environment.SetEnvironmentVariable("INSTALLATIONS_INGEST_TOKEN", null);
-            Assert(!String.IsNullOrWhiteSpace(Release.EmbeddedIngestToken), "Recurso do token ausente");
             var q = new ComputerQueue(Path.Combine(temporary, "embedded-token"));
             q.ImportEnvironmentToken();
             Assert(q.LoadToken() == Release.EmbeddedIngestToken, "Token incorporado nao configurado automaticamente");
@@ -197,5 +209,26 @@ internal static class IntegrationTests
             Environment.SetEnvironmentVariable("INSTALLATIONS_INGEST_TOKEN", "ENV-OVERRIDE-TEST"); q.ImportEnvironmentToken();
             Assert(q.LoadToken() == "ENV-OVERRIDE-TEST", "Substituicao por ambiente nao funcionou");
         } finally { Environment.SetEnvironmentVariable("INSTALLATIONS_INGEST_TOKEN", previous); }
+
+        var fresh = new FakeAccounts();
+        string result = LocalAdminAccount.Ensure(fresh, ()=>"UNIT-TEST-PASSWORD");
+        Assert(fresh.Present && fresh.Creates==1 && fresh.Group && fresh.Password=="UNIT-TEST-PASSWORD", "Conta nao criada com senha/permissoes solicitadas");
+        Assert(!result.Contains("UNIT-TEST-PASSWORD") && result.Contains("criada"), "Senha exposta no resultado");
+        var existing = new FakeAccounts {Present=true};
+        result=LocalAdminAccount.Ensure(existing, ()=> {throw new Exception("Nao deve ler senha para conta existente");});
+        Assert(existing.Creates==0 && existing.Group && !existing.Deleted && result.Contains("senha preservada"), "Conta existente foi alterada indevidamente");
+        var denied = new FakeAccounts {FailCreate=true};
+        Throws(()=>LocalAdminAccount.Ensure(denied, ()=>"UNIT-TEST-PASSWORD"), "Politica de senha ignorada");
+        Assert(!denied.Group && !denied.Deleted, "Falha de criacao tentou conceder administracao");
+        var groupFailure=new FakeAccounts {FailGroup=true};
+        Throws(()=>LocalAdminAccount.Ensure(groupFailure, ()=>"UNIT-TEST-PASSWORD"), "Falha no grupo ignorada");
+        Assert(groupFailure.Deleted && !groupFailure.Present, "Conta recem-criada nao revertida apos falha");
+        var existingFailure=new FakeAccounts {Present=true,FailGroup=true};
+        Throws(()=>LocalAdminAccount.Ensure(existingFailure, ()=>"UNIT-TEST-PASSWORD"), "Falha em conta existente ignorada");
+        Assert(!existingFailure.Deleted && existingFailure.Creates==0, "Conta preexistente foi excluida");
+        var noPassword=new FakeAccounts();
+        Throws(()=>LocalAdminAccount.Ensure(noPassword, ()=>""), "Senha ausente aceita");
+        Assert(noPassword.Creates==0, "Conta sem senha criada");
+        Throws(()=>LocalAdminAccount.EmbeddedPassword(), "Testes nao devem conter senha real embutida");
     }
 }
