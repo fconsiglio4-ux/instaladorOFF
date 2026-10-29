@@ -1,10 +1,10 @@
-# Instalador Office — Maquim 1.1.0
+# Instalador Office — Maquim 1.1.1
 
 Instalador Windows com interface para instalar **O365ProPlusRetail** a partir
 de IMG/ISO local ou pasta extraída. A imagem permanece ao lado do EXE e não
 é incluída no repositório nem no artefato de compilação.
 
-A versão 1.1.0 integra **Instalações → Computadores**, com serial e patrimônio
+A versão 1.1.1 integra **Instalações → Computadores**, com serial e patrimônio
 obrigatórios, confirmação, coleta do Office efetivo e fila persistente.
 Leia [a documentação da integração](docs-INTEGRACAO.md) para configurar o token,
 consultar os testes e executar o piloto com dados reais.
@@ -60,10 +60,19 @@ interrompem essa etapa e preservam o Office já instalado.
 
 ## Compilar
 
+O token é incorporado como recurso binário na compilação. Cadastre uma vez
+os segredos `INSTALLATIONS_INGEST_TOKEN` e `MAQUIM_LOCAL_ADMIN_PASSWORD` em **Settings → Secrets and variables
+→ Actions**. Ele deve ter o mesmo valor configurado no Roteiro Maquim.
+O token não é publicado no fonte. Sem esse segredo, o workflow executa os
+testes simulados e não publica um executável incompleto.
+
+
 No Windows 10/11 com .NET Framework 4.8 e Windows PowerShell 5.1:
 
 ```powershell
 ./tests/Test-Media.ps1
+./scripts/Build.ps1 -TestOnly
+# Para gerar o EXE final, configure INSTALLATIONS_INGEST_TOKEN no ambiente do build.
 ./scripts/Build.ps1
 ```
 
@@ -84,3 +93,6 @@ do Office; elas podem usar internet após a instalação.
 
 Referência de configuração Microsoft:
 https://learn.microsoft.com/pt-br/microsoft-365-apps/deploy/office-deployment-tool-configuration-options
+
+A versão 1.1.1 prepara também a conta local Maquim como administradora.
+Veja [comportamento da conta e configuração de build](docs-CONTA-MAQUIM.md).

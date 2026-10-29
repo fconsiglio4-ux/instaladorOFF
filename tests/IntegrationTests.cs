@@ -41,7 +41,7 @@ internal static class IntegrationTests
         temporary = Path.Combine(Path.GetTempPath(), "Maquim-computer-tests-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(temporary);
         try {
-            TestInputsAndNavigation(); TestDetection(); TestContract(); TestAcknowledgements(); TestQueue(); TestAuthenticationAndBlocks(); TestTransport();
+            TestInputsAndNavigation(); TestDetection(); TestContract(); TestAcknowledgements(); TestQueue(); TestAuthenticationAndBlocks(); TestTransport(); TestEmbeddedToken();
             Console.WriteLine("OK: " + assertions + " verificacoes; transporte sempre simulado; nenhum POST em producao."); return 0;
         } catch (Exception ex) { Console.Error.WriteLine(ex.ToString()); return 1; }
         finally { Directory.Delete(temporary, true); }
@@ -180,5 +180,22 @@ internal static class IntegrationTests
         Assert(!request.AllowAutoRedirect && request.Timeout == 30000 && request.ReadWriteTimeout == 30000, "Redirecionamento/timeout inseguros");
         Assert(request.Method == "POST" && request.ContentType == "application/json" && request.Headers[HttpRequestHeader.Authorization] == "Bearer TEST-TOKEN-NEVER-SENT", "Contrato HTTP incorreto");
         request.Abort();
+    }
+
+    static void TestEmbeddedToken()
+    {
+        string previous = Environment.GetEnvironmentVariable("INSTALLATIONS_INGEST_TOKEN");
+        try {
+            Environment.SetEnvironmentVariable("INSTALLATIONS_INGEST_TOKEN", null);
+            Assert(!String.IsNullOrWhiteSpace(Release.EmbeddedIngestToken), "Recurso do token ausente");
+            var q = new ComputerQueue(Path.Combine(temporary, "embedded-token"));
+            q.ImportEnvironmentToken();
+            Assert(q.LoadToken() == Release.EmbeddedIngestToken, "Token incorporado nao configurado automaticamente");
+            Assert(new ComputerQueue(q.Root).LoadToken() == Release.EmbeddedIngestToken, "Agente nao recuperou token incorporado");
+            q.SaveToken("LOCAL-OVERRIDE-TEST"); q.ImportEnvironmentToken();
+            Assert(q.LoadToken() == "LOCAL-OVERRIDE-TEST", "Token incorporado sobrescreveu configuracao explicita");
+            Environment.SetEnvironmentVariable("INSTALLATIONS_INGEST_TOKEN", "ENV-OVERRIDE-TEST"); q.ImportEnvironmentToken();
+            Assert(q.LoadToken() == "ENV-OVERRIDE-TEST", "Substituicao por ambiente nao funcionou");
+        } finally { Environment.SetEnvironmentVariable("INSTALLATIONS_INGEST_TOKEN", previous); }
     }
 }

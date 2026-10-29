@@ -5,10 +5,8 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
-
 permissions:
   contents: read
-
 jobs:
   build:
     runs-on: windows-latest
@@ -18,10 +16,31 @@ jobs:
       - name: Validar scripts e configuracao offline
         shell: powershell
         run: ./tests/Test-Media.ps1
-      - name: Compilar EXE, agente persistente e testar integracao simulada
+      - name: Compilar e testar com token simulado
         shell: powershell
+        run: ./scripts/Build.ps1 -TestOnly
+      - name: Verificar configuracao da compilacao final
+        id: token
+        if: github.event_name != 'pull_request'
+        shell: powershell
+        env:
+          INSTALLATIONS_INGEST_TOKEN: ${{ secrets.INSTALLATIONS_INGEST_TOKEN }}
+          MAQUIM_LOCAL_ADMIN_PASSWORD: ${{ secrets.MAQUIM_LOCAL_ADMIN_PASSWORD }}
+        run: |
+          $configured = (-not [string]::IsNullOrWhiteSpace($env:INSTALLATIONS_INGEST_TOKEN)) -and (-not [string]::IsNullOrEmpty($env:MAQUIM_LOCAL_ADMIN_PASSWORD))
+          "configured=$($configured.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          if (-not $configured) {
+            Write-Host '::warning::Cadastre os segredos INSTALLATIONS_INGEST_TOKEN e MAQUIM_LOCAL_ADMIN_PASSWORD. Testes concluidos; EXE final nao sera publicado.'
+          }
+      - name: Compilar executavel final com token e conta Maquim
+        if: github.event_name != 'pull_request' && steps.token.outputs.configured == 'true'
+        shell: powershell
+        env:
+          INSTALLATIONS_INGEST_TOKEN: ${{ secrets.INSTALLATIONS_INGEST_TOKEN }}
+          MAQUIM_LOCAL_ADMIN_PASSWORD: ${{ secrets.MAQUIM_LOCAL_ADMIN_PASSWORD }}
         run: ./scripts/Build.ps1
       - name: Publicar executavel e instrucoes
+        if: github.event_name != 'pull_request' && steps.token.outputs.configured == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: Maquim-Office-Setup

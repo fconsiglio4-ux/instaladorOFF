@@ -142,7 +142,7 @@ namespace Maquim.OfficeInstaller
                 queue = new ComputerQueue();
                 await Task.Run(() => { queue.ImportEnvironmentToken(); SyncAgent.Register(queue); queue.Retry(); });
                 setupProblem = null;
-                Append("Reenvio: a cada 15 minutos e no login, sob " + WindowsIdentity.GetCurrent().Name + ".");
+                Append("Token incorporado configurado automaticamente quando não há substituição salva. Reenvio a cada 15 minutos e no login, sob " + WindowsIdentity.GetCurrent().Name + ".");
             } catch { setupProblem = "Não foi possível preparar o reenvio. Use Configurar integração antes de instalar."; Append(setupProblem); }
             finally { integrationBusy = false; install.Enabled = true; integration.Enabled = true; RefreshStatus(); }
         }
@@ -151,7 +151,7 @@ namespace Maquim.OfficeInstaller
             if (running || integrationBusy) return;
             using (var dialog = new Form { Text = "Integração com Roteiro Maquim", StartPosition = FormStartPosition.CenterParent, Size = new Size(690, 310), FormBorderStyle = FormBorderStyle.FixedDialog, MaximizeBox = false, MinimizeBox = false })
             {
-                var label = new Label { Left = 18, Top = 15, Width = 640, Height = 70, Text = "Informe o mesmo INSTALLATIONS_INGEST_TOKEN configurado no Roteiro Maquim.\nSerá protegido para a conta Windows atual. Deixe vazio para manter o token salvo.\nDestino: Instalações → Computadores." };
+                var label = new Label { Left = 18, Top = 15, Width = 640, Height = 70, Text = "O token padrão é incorporado durante a compilação. Este campo permite substituí-lo.\nSerá protegido para a conta Windows atual. Deixe vazio para manter o token salvo.\nDestino: Instalações → Computadores." };
                 var token = new TextBox { Left = 18, Top = 90, Width = 640, UseSystemPasswordChar = true, MaxLength = 4096 };
                 var save = new Button { Left = 430, Top = 200, Width = 230, Text = "Salvar e tentar enviar", DialogResult = DialogResult.OK };
                 var retryBlocked = new CheckBox { Left = 18, Top = 130, Width = 630, Height = 50, Text = "Reavaliar registros bloqueados por formato/tamanho (após corrigir a causa)." };

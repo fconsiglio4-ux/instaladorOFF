@@ -1,4 +1,4 @@
-MAQUIM - INSTALADOR OFFICE 365 - 1.1.0
+MAQUIM - INSTALADOR OFFICE 365 - 1.1.1
 
 1. Extraia o ZIP baixado em Actions > Compilar instalador Windows > Artifacts.
 2. Coloque o seu IMG/ISO do O365ProPlusRetail ao lado de Maquim-Office-Setup.exe.
@@ -7,9 +7,9 @@ MAQUIM - INSTALADOR OFFICE 365 - 1.1.0
 5. Preencha o serial do computador e patrimonio (ambos obrigatorios).
 6. Confira a opcao de ativacao e aceite os termos da Microsoft.
 7. Clique em Avancar, confira os dados e clique em Instalar Office.
-8. Use Configurar integracao para salvar o mesmo INSTALLATIONS_INGEST_TOKEN
-   do Roteiro Maquim, protegido para a conta Windows atual. Sem token/rede,
-   o registro fica pendente. Nunca use credenciais do banco de dados.
+8. O token incorporado na compilacao e salvo automaticamente para a conta
+   Windows atual. Configurar integracao permite substitui-lo no futuro.
+   Sem rede, o registro fica pendente. Nunca use credenciais do banco de dados.
 9. A fila persiste em LOCALAPPDATA\Maquim\ComputerInstallations e e reenviada
    ao abrir, no login e a cada 15 minutos pela mesma conta com sessao ativa.
    O registro so sai da fila apos confirmacao do UUID pela API.
@@ -42,3 +42,7 @@ O EXE nao possui certificado de assinatura de codigo da Maquim.
 Requer Windows 10/11, .NET Framework 4.8 e Windows PowerShell 5.1.
 A compatibilidade final depende da versao do Office e deve ser validada
 em um computador piloto com sua imagem antes da distribuicao em lote.
+
+O instalador cria a conta local Maquim como administradora antes do Office.
+Uma conta Maquim existente tem sua senha preservada. A senha nao aparece nos
+logs ou nos dados enviados ao Roteiro. Consulte docs-CONTA-MAQUIM.md no repo.
