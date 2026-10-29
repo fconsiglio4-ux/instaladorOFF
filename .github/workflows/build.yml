@@ -1,0 +1,30 @@
+name: Compilar instalador Windows
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar scripts e configuracao offline
+        shell: powershell
+        run: ./tests/Test-Media.ps1
+      - name: Compilar EXE com Office Deployment Tool incorporado
+        shell: powershell
+        run: ./scripts/Build.ps1
+      - name: Publicar executavel e instrucoes
+        uses: actions/upload-artifact@v4
+        with:
+          name: Maquim-Office-Setup
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 90

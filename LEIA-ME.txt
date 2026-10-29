@@ -1,0 +1,37 @@
+MAQUIM - INSTALADOR OFFICE 365 - 1.0.0
+
+1. Extraia o ZIP baixado em Actions > Compilar instalador Windows > Artifacts.
+2. Coloque o seu IMG/ISO do O365ProPlusRetail ao lado de Maquim-Office-Setup.exe.
+3. Abra o EXE e confirme a solicitacao de administrador do Windows.
+4. Selecione arquitetura e idioma existentes na imagem. Padrao: 64 bits / pt-br.
+5. Confira a opcao de ativacao e aceite os termos da Microsoft antes de instalar.
+6. Clique em Instalar Office e aguarde o resultado.
+
+Uma unica imagem ao lado do EXE e selecionada automaticamente. Com varias
+imagens, use Imagem. Tambem e possivel usar Pasta e selecionar a raiz extraida,
+que deve conter Office\Data. A midia nao e enviada para a internet.
+
+Instalacao: arquivos locais, versao fixada na midia, sem download previo do
+Office. A midia deve estar completa para o idioma/arquitetura escolhidos.
+Atualizacoes futuras do Office podem usar internet normalmente.
+
+Ativacao opcional: Ohook 3.12, revisao fixa do projeto Microsoft Activation
+Scripts, com SHA-256 verificado antes da execucao. Requer internet para baixar
+o script. Altera componentes de licenciamento e nao comprova licenca Microsoft.
+Desmarque a opcao para usar a ativacao oficial por conta licenciada.
+
+Feche os aplicativos do Office antes de iniciar. O instalador nao remove
+versoes anteriores, nao fecha documentos e nao reinicia o computador.
+Em caso de arquitetura conflitante, remova a versao anterior manualmente.
+Se houver reinicializacao pendente da instalacao, a ativacao sera adiada;
+reinicie e execute novamente o instalador para concluir o fluxo.
+
+Registros: botao Abrir registros, em ProgramData\MaquimOffice\Runs.
+installation.log: etapas do instalador.
+activation.log e activation-error.log: saida do script de ativacao.
+Erros detalhados do Office Deployment Tool: pasta TEMP do usuario administrador.
+
+O EXE nao possui certificado de assinatura de codigo da Maquim.
+Requer Windows 10/11, .NET Framework 4.8 e Windows PowerShell 5.1.
+A compatibilidade final depende da versao do Office e deve ser validada
+em um computador piloto com sua imagem antes da distribuicao em lote.
