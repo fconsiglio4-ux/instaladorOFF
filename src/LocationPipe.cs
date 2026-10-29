@@ -37,8 +37,12 @@ namespace Maquim.OfficeInstaller
                         var deadline = DateTime.UtcNow.AddSeconds(5);
                         while (count < buffer.Length) {
                             var read = pipe.BeginRead(buffer, count, buffer.Length - count, null, null);
-                            using (read.AsyncWaitHandle) if (!read.AsyncWaitHandle.WaitOne(Math.Max(1, (int)(deadline - DateTime.UtcNow).TotalMilliseconds))) break;
-                            int n = pipe.EndRead(read); if (n == 0) break;
+                            int n;
+                            using (var completed = read.AsyncWaitHandle) {
+                                if (!completed.WaitOne(Math.Max(1, (int)(deadline - DateTime.UtcNow).TotalMilliseconds))) break;
+                                n = pipe.EndRead(read);
+                            }
+                            if (n == 0) break;
                             count += n; if (Array.IndexOf(buffer, (byte)10, 0, count) >= 0) break;
                         }
                         int end = Array.IndexOf(buffer, (byte)10, 0, count);
@@ -62,11 +66,9 @@ namespace Maquim.OfficeInstaller
                 byte[] bytes = Encoding.UTF8.GetBytes(new JavaScriptSerializer().Serialize(value) + "\n");
                 if (bytes.Length > 4096) throw new InvalidDataException();
                 var write = pipe.BeginWrite(bytes, 0, bytes.Length, null, null);
-                using (write.AsyncWaitHandle) { if (!write.AsyncWaitHandle.WaitOne(3000)) return false; }
-                pipe.EndWrite(write);
+                using (var completed = write.AsyncWaitHandle) { if (!completed.WaitOne(3000)) return false; pipe.EndWrite(write); }
                 byte[] ack = new byte[1]; var read = pipe.BeginRead(ack, 0, 1, null, null);
-                using (read.AsyncWaitHandle) { if (!read.AsyncWaitHandle.WaitOne(3000)) return false; }
-                return pipe.EndRead(read) == 1 && ack[0] == 1;
+                using (var completed = read.AsyncWaitHandle) { if (!completed.WaitOne(3000)) return false; return pipe.EndRead(read) == 1 && ack[0] == 1; }
             }
         }
     }
