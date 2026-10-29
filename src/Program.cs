@@ -39,7 +39,7 @@ namespace Maquim.OfficeInstaller
 
         public InstallerForm()
         {
-            Text = "Maquim — Instalador Office 365 | 1.0.0";
+            Text = "Maquim — Instalador Office 365 | 1.0.1";
             Size = new Size(850, 650);
             MinimumSize = new Size(800, 600);
             StartPosition = FormStartPosition.CenterScreen;

@@ -1,5 +1,21 @@
 Set-StrictMode -Version Latest
 
+function ConvertTo-OfficeInstallationState {
+    param([AllowNull()]$Configuration)
+    # Chaves remanescentes da desinstalacao podem nao ter valores de produto.
+    # O acesso direto a propriedades ausentes falha sob Set-StrictMode.
+    $values = @{ Platform = ''; ProductReleaseIds = ''; VersionToReport = '' }
+    if ($null -ne $Configuration) {
+        foreach ($name in @('Platform', 'ProductReleaseIds', 'VersionToReport')) {
+            $property = $Configuration.PSObject.Properties[$name]
+            if ($null -ne $property -and $null -ne $property.Value) {
+                $values[$name] = ([string]$property.Value).Trim()
+            }
+        }
+    }
+    return [pscustomobject]$values
+}
+
 function Get-OfficeMedia {
     param([Parameter(Mandatory)][string]$Root, [ValidateSet('32','64')][string]$Architecture = '64', [string]$Language = 'pt-br')
     $data = Join-Path $Root 'Office\Data'
@@ -50,4 +66,4 @@ function New-OfficeConfiguration {
     return $doc.OuterXml
 }
 
-Export-ModuleMember -Function Get-OfficeMedia, New-OfficeConfiguration
+Export-ModuleMember -Function Get-OfficeMedia, New-OfficeConfiguration, ConvertTo-OfficeInstallationState

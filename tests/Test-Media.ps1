@@ -15,6 +15,21 @@ function Assert-Throws([scriptblock]$Action) {
 }
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('Office & Test-' + [guid]::NewGuid().ToString('N'))
 try {
+    foreach ($configuration in @($null, [pscustomobject]@{}, [pscustomobject]@{ PSPath = 'Registry::Office' })) {
+        $state = ConvertTo-OfficeInstallationState -Configuration $configuration
+        Assert ($state.Platform -eq '') 'Chave ausente/incompleta deveria permitir a verificacao pelo ODT.'
+        Assert ($state.ProductReleaseIds -eq '') 'Produto ausente deveria ser vazio.'
+    }
+    $state = ConvertTo-OfficeInstallationState -Configuration ([pscustomobject]@{ ProductReleaseIds = 'O365ProPlusRetail' })
+    Assert ($state.Platform -eq '') 'Registro com produto e sem Platform nao deve falhar.'
+    Assert ($state.ProductReleaseIds -eq 'O365ProPlusRetail') 'Produto existente foi perdido.'
+    $state = ConvertTo-OfficeInstallationState -Configuration ([pscustomobject]@{ Platform = $null; ProductReleaseIds = $null })
+    Assert ($state.Platform -eq '' -and $state.ProductReleaseIds -eq '') 'Valores nulos nao devem falhar.'
+    foreach ($platform in @('x86','x64')) {
+        $state = ConvertTo-OfficeInstallationState -Configuration ([pscustomobject]@{ Platform = $platform; ProductReleaseIds = 'O365ProPlusRetail'; VersionToReport = '16.0.20527.20088' })
+        Assert ($state.Platform -eq $platform) 'Arquitetura existente foi perdida.'
+        Assert ($state.VersionToReport -eq '16.0.20527.20088') 'Versao existente foi perdida.'
+    }
     $data = Join-Path $fixture 'Office\Data'
     $version = Join-Path $data '16.0.20527.20088'
     New-Item -ItemType Directory -Path $version -Force | Out-Null
@@ -37,6 +52,6 @@ try {
     Assert-Throws { Get-OfficeMedia -Root $fixture -Architecture 64 -Language en-us }
     Remove-Item -LiteralPath (Join-Path $version 'stream.x64.x-none.dat')
     Assert-Throws { Get-OfficeMedia -Root $fixture -Architecture 64 -Language pt-br }
-    Write-Host 'OK: sintaxe, produto, idioma, arquitetura, versao local, caminhos e midia incompleta.'
+    Write-Host 'OK: registro ausente/incompleto, x86/x64, sintaxe, produto, idioma, versao local, caminhos e midia incompleta.'
 }
 finally { Remove-Item -LiteralPath $fixture -Recurse -Force -ErrorAction SilentlyContinue }

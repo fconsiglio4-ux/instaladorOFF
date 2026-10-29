@@ -30,9 +30,15 @@ try {
     if ($openApps.Count -gt 0) { throw 'Feche os aplicativos do Office antes de continuar. Nenhum documento sera fechado automaticamente.' }
     $expectedPlatform = if ($Architecture -eq '64') { 'x64' } else { 'x86' }
     $installed = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration' -ErrorAction SilentlyContinue
+    $installedState = ConvertTo-OfficeInstallationState -Configuration $installed
     if ($installed) {
-        if ($installed.Platform -ne $expectedPlatform) { throw 'A arquitetura do Office existente e diferente. Selecione a mesma arquitetura ou remova a instalacao anterior manualmente.' }
-        Write-Stage 'Office existente detectado. O instalador nao remove produtos anteriores.'
+        if ($installedState.Platform -in @('x64','x86')) {
+            if ($installedState.Platform -ne $expectedPlatform) { throw 'A arquitetura do Office existente e diferente. Selecione a mesma arquitetura ou remova a instalacao anterior manualmente.' }
+            Write-Stage "Office existente detectado: $($installedState.Platform); produtos: $($installedState.ProductReleaseIds); versao: $($installedState.VersionToReport)."
+        }
+        else {
+            Write-Stage 'Registro anterior do Office sem Platform valido. Continuando para a verificacao do instalador Microsoft.'
+        }
     }
     $setup = Join-Path $PSScriptRoot 'setup.exe'
     $signature = Get-AuthenticodeSignature -LiteralPath $setup
@@ -61,8 +67,10 @@ try {
     if ($process.ExitCode -notin @(0,3010)) { throw "A instalacao retornou o codigo $($process.ExitCode). Consulte os logs do Office na pasta TEMP." }
     $reboot = $process.ExitCode -eq 3010
     $after = Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration' -ErrorAction Stop
-    if ('O365ProPlusRetail' -notin ($after.ProductReleaseIds -split ',')) { throw 'O instalador terminou, mas O365ProPlusRetail nao foi encontrado no registro.' }
-    if ($after.Platform -ne $expectedPlatform) { throw 'A arquitetura instalada nao corresponde a selecao.' }
+    $afterState = ConvertTo-OfficeInstallationState -Configuration $after
+    if ('O365ProPlusRetail' -notin ($afterState.ProductReleaseIds -split ',')) { throw 'O instalador terminou, mas O365ProPlusRetail nao foi encontrado no registro.' }
+    if (-not $afterState.Platform) { throw 'O instalador terminou, mas o campo Platform nao foi preenchido no registro. Nao foi possivel confirmar a instalacao.' }
+    if ($afterState.Platform -ne $expectedPlatform) { throw 'A arquitetura instalada nao corresponde a selecao.' }
     Write-Stage 'Instalacao do Office concluida e produto identificado no registro.'
     if ($Activate -and -not $reboot) {
         Write-Stage 'Baixando Ohook 3.12 da revisao fixa e verificando SHA-256...'
